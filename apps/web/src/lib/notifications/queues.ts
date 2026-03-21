@@ -1,0 +1,156 @@
+import { Queue, Worker } from 'bullmq';
+import { prisma } from '@golab/database';
+import { redisConnection } from './redis';
+import type { NotificationChannel, NotificationJobPayload } from './types';
+import { sendWhatsAppMessage } from '../integrations/whatsapp/twilio-provider';
+
+// ---------------------------------------------------------------------------
+// Queue defaults
+// ---------------------------------------------------------------------------
+
+const defaultJobOptions = {
+  attempts: 3,
+  backoff: { type: 'exponential' as const, delay: 2000 },
+  removeOnComplete: 1000,
+  removeOnFail: 5000,
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const portalQueue = new Queue('notification:portal', {
+  connection: redisConnection,
+  defaultJobOptions,
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const emailQueue = new Queue('notification:email', {
+  connection: redisConnection,
+  defaultJobOptions,
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const whatsappQueue = new Queue('notification:whatsapp', {
+  connection: redisConnection,
+  defaultJobOptions,
+});
+
+/**
+ * Enqueue a notification job for async delivery on the correct channel queue.
+ */
+export async function enqueueNotificationJob(
+  channel: NotificationChannel,
+  name: string,
+  payload: NotificationJobPayload,
+  jobId: string,
+): Promise<void> {
+  const opts = { jobId };
+  switch (channel) {
+    case 'PORTAL':
+      await portalQueue.add(name, payload, opts);
+      break;
+    case 'EMAIL':
+      await emailQueue.add(name, payload, opts);
+      break;
+    case 'WHATSAPP':
+      await whatsappQueue.add(name, payload, opts);
+      break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status helpers
+// ---------------------------------------------------------------------------
+
+async function markSent(notificationId: string): Promise<void> {
+  await prisma.notification.update({
+    where: { id: notificationId },
+    data: { status: 'SENT', sentAt: new Date() },
+  });
+}
+
+async function markDelivered(notificationId: string): Promise<void> {
+  await prisma.notification.update({
+    where: { id: notificationId },
+    data: { status: 'DELIVERED', deliveredAt: new Date() },
+  });
+}
+
+async function markFailed(notificationId: string, reason: string): Promise<void> {
+  await prisma.notification.update({
+    where: { id: notificationId },
+    data: { status: 'FAILED', failureReason: reason },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Workers
+// ---------------------------------------------------------------------------
+
+/** Portal worker: DB record already exists, just mark delivered. */
+export function createPortalWorker(): Worker<NotificationJobPayload, unknown, string> {
+  return new Worker<NotificationJobPayload, unknown, string>(
+    'notification:portal',
+    async (job) => {
+      await markSent(job.data.notificationId);
+      // Portal notifications are "delivered" immediately (user reads in-app)
+      await markDelivered(job.data.notificationId);
+    },
+    {
+      connection: redisConnection,
+      concurrency: 10,
+    },
+  );
+}
+
+/** Email worker: sends via email provider, then updates status. */
+export function createEmailWorker(): Worker<NotificationJobPayload, unknown, string> {
+  return new Worker<NotificationJobPayload, unknown, string>(
+    'notification:email',
+    async (job) => {
+      try {
+        // TODO: integrate with actual email provider (Resend, SES, etc.)
+        // For now, log and mark sent
+        console.log(`[email] Sending to user ${job.data.userId}: ${job.data.title}`);
+        await markSent(job.data.notificationId);
+        await markDelivered(job.data.notificationId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown email error';
+        await markFailed(job.data.notificationId, message);
+        throw error; // let BullMQ retry
+      }
+    },
+    {
+      connection: redisConnection,
+      concurrency: 5,
+    },
+  );
+}
+
+/** WhatsApp worker: sends via Twilio provider, then updates status. */
+export function createWhatsAppWorker(): Worker<NotificationJobPayload, unknown, string> {
+  return new Worker<NotificationJobPayload, unknown, string>(
+    'notification:whatsapp',
+    async (job) => {
+      try {
+        await sendWhatsAppMessage({
+          to: (job.data.data.phone as string) ?? '',
+          templateName: job.data.eventType,
+          variables: {
+            title: job.data.title,
+            body: job.data.body,
+            ...job.data.data,
+          },
+        });
+        await markSent(job.data.notificationId);
+        await markDelivered(job.data.notificationId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown WhatsApp error';
+        await markFailed(job.data.notificationId, message);
+        throw error; // let BullMQ retry
+      }
+    },
+    {
+      connection: redisConnection,
+      concurrency: 3,
+    },
+  );
+}
