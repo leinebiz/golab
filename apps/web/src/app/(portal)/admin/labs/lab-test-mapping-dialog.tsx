@@ -76,41 +76,44 @@ export function LabTestMappingDialog({ lab, onClose }: LabTestMappingDialogProps
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [testsRes, mappingsRes] = await Promise.all([
-      fetch('/api/v1/tests?pageSize=100'),
-      fetch(`/api/v1/laboratories/${lab.id}/tests`),
-    ]);
+    try {
+      const [testsRes, mappingsRes] = await Promise.all([
+        fetch('/api/v1/tests?pageSize=100'),
+        fetch(`/api/v1/laboratories/${lab.id}/tests`),
+      ]);
 
-    const testsJson = await testsRes.json();
-    const mappingsJson = await mappingsRes.json();
+      const testsJson = await testsRes.json();
+      const mappingsJson = await mappingsRes.json();
 
-    const tests: TestCatalogueItem[] = testsJson.data ?? [];
-    const mappings: LabTestMapping[] = mappingsJson.data ?? [];
+      const tests: TestCatalogueItem[] = testsJson.data ?? [];
+      const mappings: LabTestMapping[] = mappingsJson.data ?? [];
 
-    setAllTests(tests);
+      setAllTests(tests);
 
-    // Build edits map from existing mappings
-    const editMap = new Map<string, MappingEdit>();
-    for (const test of tests) {
-      const existing = mappings.find((m: LabTestMapping) => m.testCatalogueId === test.id);
-      editMap.set(test.id, {
-        testCatalogueId: test.id,
-        enabled: !!existing,
-        accreditation:
-          existing?.accreditation ?? (test.accreditation as 'ACCREDITED' | 'NON_ACCREDITED'),
-        labTatDays: existing?.labTatDays ?? test.standardTatDays,
-        labPrice: existing?.labPrice ? String(existing.labPrice) : '',
-        isActive: existing?.isActive ?? true,
-      });
+      // Build edits map from existing mappings
+      const editMap = new Map<string, MappingEdit>();
+      for (const test of tests) {
+        const existing = mappings.find((m: LabTestMapping) => m.testCatalogueId === test.id);
+        editMap.set(test.id, {
+          testCatalogueId: test.id,
+          enabled: !!existing,
+          accreditation:
+            existing?.accreditation ?? (test.accreditation as 'ACCREDITED' | 'NON_ACCREDITED'),
+          labTatDays: existing?.labTatDays ?? test.standardTatDays,
+          labPrice: existing?.labPrice ? String(existing.labPrice) : '',
+          isActive: existing?.isActive ?? true,
+        });
+      }
+      setEdits(editMap);
+    } finally {
+      setLoading(false);
     }
-    setEdits(editMap);
-    setLoading(false);
   }, [lab.id]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    void fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lab.id]);
 
   function updateEdit(testId: string, updates: Partial<MappingEdit>) {
     setEdits((prev) => {
@@ -127,32 +130,34 @@ export function LabTestMappingDialog({ lab, onClose }: LabTestMappingDialogProps
     setSaving(true);
     setError(null);
 
-    const mappings = Array.from(edits.values())
-      .filter((e) => e.enabled)
-      .map((e) => ({
-        testCatalogueId: e.testCatalogueId,
-        accreditation: e.accreditation,
-        labTatDays: e.labTatDays,
-        labPrice: e.labPrice || undefined,
-        isActive: e.isActive,
-      }));
+    try {
+      const mappings = Array.from(edits.values())
+        .filter((e) => e.enabled)
+        .map((e) => ({
+          testCatalogueId: e.testCatalogueId,
+          accreditation: e.accreditation,
+          labTatDays: e.labTatDays,
+          labPrice: e.labPrice || undefined,
+          isActive: e.isActive,
+        }));
 
-    const res = await fetch(`/api/v1/laboratories/${lab.id}/tests`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mappings }),
-    });
+      const res = await fetch(`/api/v1/laboratories/${lab.id}/tests`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mappings }),
+      });
 
-    const json = await res.json();
+      const json = await res.json();
 
-    if (!res.ok) {
-      setError(json.error ?? 'An error occurred');
+      if (!res.ok) {
+        setError(json.error ?? 'An error occurred');
+        return;
+      }
+
+      onClose();
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setSaving(false);
-    onClose();
   }
 
   return (

@@ -41,41 +41,43 @@ export function LabFormDialog({ open, onClose, lab }: LabFormDialogProps) {
     setSaving(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    try {
+      const formData = new FormData(e.currentTarget);
 
-    const payload = {
-      code: formData.get('code') as string,
-      name: formData.get('name') as string,
-      organizationId: formData.get('organizationId') as string,
-      location: {
-        lat: parseFloat(formData.get('lat') as string),
-        lng: parseFloat(formData.get('lng') as string),
-        address: formData.get('address') as string,
-      },
-      contactEmail: formData.get('contactEmail') as string,
-      contactPhone: formData.get('contactPhone') as string,
-      isActive: formData.get('isActive') === 'on',
-    };
+      const payload = {
+        code: formData.get('code') as string,
+        name: formData.get('name') as string,
+        organizationId: formData.get('organizationId') as string,
+        location: {
+          lat: parseFloat(formData.get('lat') as string),
+          lng: parseFloat(formData.get('lng') as string),
+          address: formData.get('address') as string,
+        },
+        contactEmail: formData.get('contactEmail') as string,
+        contactPhone: formData.get('contactPhone') as string,
+        isActive: formData.get('isActive') === 'on',
+      };
 
-    const url = isEditing ? `/api/v1/laboratories/${lab.id}` : '/api/v1/laboratories';
-    const method = isEditing ? 'PUT' : 'POST';
+      const url = isEditing ? `/api/v1/laboratories/${lab.id}` : '/api/v1/laboratories';
+      const method = isEditing ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    const json = await res.json();
+      const json = await res.json();
 
-    if (!res.ok) {
-      setError(json.error ?? 'An error occurred');
+      if (!res.ok) {
+        setError(json.error ?? 'An error occurred');
+        return;
+      }
+
+      onClose();
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setSaving(false);
-    onClose();
   }
 
   return (

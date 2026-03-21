@@ -55,44 +55,46 @@ export function TestFormDialog({ open, onClose, test }: TestFormDialogProps) {
     setSaving(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
+    try {
+      const formData = new FormData(e.currentTarget);
 
-    const payload = {
-      code: formData.get('code') as string,
-      name: formData.get('name') as string,
-      description: (formData.get('description') as string) || undefined,
-      category: formData.get('category') as string,
-      accreditation: formData.get('accreditation') as string,
-      standardTatDays: parseInt(formData.get('standardTatDays') as string, 10),
-      expeditedTatDays: formData.get('expeditedTatDays')
-        ? parseInt(formData.get('expeditedTatDays') as string, 10)
-        : undefined,
-      basePrice: formData.get('basePrice') as string,
-      expediteSurcharge: (formData.get('expediteSurcharge') as string) || undefined,
-      toleranceApplicable: formData.get('toleranceApplicable') === 'on',
-      toleranceUnit: (formData.get('toleranceUnit') as string) || undefined,
-      isActive: formData.get('isActive') === 'on',
-    };
+      const payload = {
+        code: formData.get('code') as string,
+        name: formData.get('name') as string,
+        description: (formData.get('description') as string) || undefined,
+        category: formData.get('category') as string,
+        accreditation: formData.get('accreditation') as string,
+        standardTatDays: parseInt(formData.get('standardTatDays') as string, 10),
+        expeditedTatDays: formData.get('expeditedTatDays')
+          ? parseInt(formData.get('expeditedTatDays') as string, 10)
+          : undefined,
+        basePrice: formData.get('basePrice') as string,
+        expediteSurcharge: (formData.get('expediteSurcharge') as string) || undefined,
+        toleranceApplicable: formData.get('toleranceApplicable') === 'on',
+        toleranceUnit: (formData.get('toleranceUnit') as string) || undefined,
+        isActive: formData.get('isActive') === 'on',
+      };
 
-    const url = isEditing ? `/api/v1/tests/${test.id}` : '/api/v1/tests';
-    const method = isEditing ? 'PUT' : 'POST';
+      const url = isEditing ? `/api/v1/tests/${test.id}` : '/api/v1/tests';
+      const method = isEditing ? 'PUT' : 'POST';
 
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-    const json = await res.json();
+      const json = await res.json();
 
-    if (!res.ok) {
-      setError(json.error ?? 'An error occurred');
+      if (!res.ok) {
+        setError(json.error ?? 'An error occurred');
+        return;
+      }
+
+      onClose();
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setSaving(false);
-    onClose();
   }
 
   return (

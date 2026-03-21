@@ -102,15 +102,18 @@ export default function TestCataloguePage() {
 
   const fetchTests = useCallback(async (page = 1, searchTerm = '', category = 'all') => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: '20' });
-    if (searchTerm) params.set('search', searchTerm);
-    if (category !== 'all') params.set('category', category);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: '20' });
+      if (searchTerm) params.set('search', searchTerm);
+      if (category !== 'all') params.set('category', category);
 
-    const res = await fetch(`/api/v1/tests?${params}`);
-    const json = await res.json();
-    setData(json.data ?? []);
-    setPagination(json.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 });
-    setLoading(false);
+      const res = await fetch(`/api/v1/tests?${params}`);
+      const json = await res.json();
+      setData(json.data ?? []);
+      setPagination(json.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

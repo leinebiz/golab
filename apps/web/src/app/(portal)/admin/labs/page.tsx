@@ -79,14 +79,17 @@ export default function LaboratoriesPage() {
 
   const fetchLabs = useCallback(async (page = 1, searchTerm = '') => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: '20' });
-    if (searchTerm) params.set('search', searchTerm);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: '20' });
+      if (searchTerm) params.set('search', searchTerm);
 
-    const res = await fetch(`/api/v1/laboratories?${params}`);
-    const json = await res.json();
-    setData(json.data ?? []);
-    setPagination(json.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 });
-    setLoading(false);
+      const res = await fetch(`/api/v1/laboratories?${params}`);
+      const json = await res.json();
+      setData(json.data ?? []);
+      setPagination(json.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
