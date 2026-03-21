@@ -1,5 +1,3 @@
-import type { RequestStatus, SubRequestStatus, UserRole } from '@golab/database';
-
 export interface TransitionContext {
   entityId: string;
   entityType: 'Request' | 'SubRequest';
@@ -7,7 +5,7 @@ export interface TransitionContext {
   targetStatus: string;
   triggeredBy: {
     userId: string;
-    role: UserRole | 'system';
+    role: string;
     type: 'user' | 'system' | 'webhook';
   };
   metadata?: Record<string, unknown>;
@@ -18,10 +16,10 @@ export interface StateTransition<TStatus extends string> {
   to: TStatus;
   guard?: (context: TransitionContext) => Promise<boolean>;
   onTransition?: (context: TransitionContext) => Promise<void>;
-  roles: (UserRole | 'system')[];
+  roles: string[];
 }
 
-export const REQUEST_TRANSITIONS: StateTransition<RequestStatus>[] = [
+export const REQUEST_TRANSITIONS: StateTransition<string>[] = [
   {
     from: 'DRAFT',
     to: 'QUOTE_CALCULATED',
@@ -94,7 +92,7 @@ export const REQUEST_TRANSITIONS: StateTransition<RequestStatus>[] = [
   },
 ];
 
-export const SUB_REQUEST_TRANSITIONS: StateTransition<SubRequestStatus>[] = [
+export const SUB_REQUEST_TRANSITIONS: StateTransition<string>[] = [
   { from: 'PICKUP_REQUESTED', to: 'WAYBILL_AVAILABLE', roles: ['SYSTEM'] },
   { from: 'WAYBILL_AVAILABLE', to: 'PICKUP_SCHEDULED', roles: ['SYSTEM'] },
   { from: 'PICKUP_SCHEDULED', to: 'PICKUP_EXCEPTION', roles: ['SYSTEM'] },
@@ -185,7 +183,7 @@ export function findValidTransition<T extends string>(
       const fromMatch = Array.isArray(t.from)
         ? t.from.includes(currentStatus)
         : t.from === currentStatus;
-      return fromMatch && t.to === targetStatus && t.roles.includes(role as UserRole);
+      return fromMatch && t.to === targetStatus && t.roles.includes(role);
     }) ?? null
   );
 }

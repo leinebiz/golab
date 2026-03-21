@@ -66,19 +66,18 @@ export async function executeTransition(params: TransitionParams): Promise<void>
   }
 
   // Perform the transition in a transaction
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await prisma.$transaction(async (tx: any) => {
     // Update status
     if (entityType === 'Request') {
       await tx.request.update({
         where: { id: entityId },
-        data: { status: targetStatus as Parameters<typeof tx.request.update>[0]['data']['status'] },
+        data: { status: targetStatus },
       });
     } else {
       await tx.subRequest.update({
         where: { id: entityId },
-        data: {
-          status: targetStatus as Parameters<typeof tx.subRequest.update>[0]['data']['status'],
-        },
+        data: { status: targetStatus },
       });
     }
 
@@ -106,7 +105,13 @@ export async function executeTransition(params: TransitionParams): Promise<void>
   }
 
   logger.info(
-    { entityType, entityId, fromStatus: currentStatus, toStatus: targetStatus, actor: triggeredBy.userId },
+    {
+      entityType,
+      entityId,
+      fromStatus: currentStatus,
+      toStatus: targetStatus,
+      actor: triggeredBy.userId,
+    },
     'workflow.transition',
   );
 }
