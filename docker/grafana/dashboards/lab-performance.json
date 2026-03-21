@@ -1,0 +1,74 @@
+{
+  "dashboard": {
+    "title": "GoLab - Lab Performance",
+    "uid": "golab-lab-performance",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Certificate Upload Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_certificates_uploaded_total[5m]) * 60",
+            "legendFormat": "uploads/min"
+          }
+        ]
+      },
+      {
+        "title": "Certificate Review Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_certificates_reviewed_total[5m]) * 60",
+            "legendFormat": "reviews/min"
+          }
+        ]
+      },
+      {
+        "title": "Request Completion Ratio",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(golab_requests_completed_total[5m]) / rate(golab_requests_created_total[5m])",
+            "legendFormat": "completion ratio"
+          }
+        ]
+      },
+      {
+        "title": "Review Queue Backlog",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "golab_review_queue_depth",
+            "legendFormat": "pending reviews"
+          }
+        ]
+      },
+      {
+        "title": "Quote Calculation Duration (p50 / p95 / p99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(golab_quote_calculation_duration_ms_bucket[5m]))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(golab_quote_calculation_duration_ms_bucket[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(golab_quote_calculation_duration_ms_bucket[5m]))",
+            "legendFormat": "p99"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "dashboard": {
+    "title": "GoLab - Financial",
+    "uid": "golab-financial",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Payments Processed (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_payments_processed_total[5m]) * 60",
+            "legendFormat": "payments/min"
+          }
+        ]
+      },
+      {
+        "title": "Total Payments Processed",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "golab_payments_processed_total",
+            "legendFormat": "total"
+          }
+        ]
+      },
+      {
+        "title": "Quote Calculation Duration (p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(golab_quote_calculation_duration_ms_bucket[5m]))",
+            "legendFormat": "p95 ms"
+          }
+        ]
+      },
+      {
+        "title": "Webhook Events (Stripe)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(golab_webhook_received_total[5m]) * 60",
+            "legendFormat": "webhooks/min"
+          }
+        ]
+      }
+    ]
+  }
+}
