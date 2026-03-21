@@ -1,0 +1,65 @@
+{
+  "dashboard": {
+    "title": "GoLab - Operations Overview",
+    "uid": "golab-operations-overview",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Active Requests by Status",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "targets": [{ "expr": "golab_active_requests_count", "legendFormat": "Active Requests" }],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 100 }] } } }
+      },
+      {
+        "title": "Pending Reviews",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "targets": [{ "expr": "golab_pending_reviews_count", "legendFormat": "Pending Reviews" }]
+      },
+      {
+        "title": "Queue Depth",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "targets": [{ "expr": "golab_queue_depth", "legendFormat": "Queue Depth" }]
+      },
+      {
+        "title": "Requests Created (24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "targets": [{ "expr": "increase(golab_requests_created_total[24h])", "legendFormat": "Created" }]
+      },
+      {
+        "title": "Request Volume Trend",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "targets": [{ "expr": "rate(golab_requests_created_total[5m]) * 60", "legendFormat": "Requests/min" }],
+        "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 20 } } }
+      },
+      {
+        "title": "State Transition Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "targets": [{ "expr": "rate(golab_transitions_total[5m]) * 60", "legendFormat": "{{from_state}} -> {{to_state}}" }]
+      },
+      {
+        "title": "Notifications Sent",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [{ "expr": "rate(golab_notifications_sent_total[5m]) * 60", "legendFormat": "{{channel}}" }]
+      },
+      {
+        "title": "Request Processing Duration (p50/p95/p99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, rate(golab_request_processing_duration_seconds_bucket[5m]))", "legendFormat": "p50" },
+          { "expr": "histogram_quantile(0.95, rate(golab_request_processing_duration_seconds_bucket[5m]))", "legendFormat": "p95" },
+          { "expr": "histogram_quantile(0.99, rate(golab_request_processing_duration_seconds_bucket[5m]))", "legendFormat": "p99" }
+        ]
+      }
+    ]
+  }
+}

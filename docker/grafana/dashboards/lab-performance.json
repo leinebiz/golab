@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "title": "GoLab - Lab Performance",
+    "uid": "golab-lab-performance",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "templating": {
+      "list": [{ "name": "lab", "type": "query", "query": "label_values(golab_request_processing_duration_seconds_count, lab_id)", "datasource": "Prometheus", "refresh": 2, "includeAll": true, "multi": true }]
+    },
+    "panels": [
+      {
+        "title": "Turnaround Time by Lab (p50)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [{ "expr": "histogram_quantile(0.50, rate(golab_request_processing_duration_seconds_bucket{lab_id=~\"$lab\"}[1h]))", "legendFormat": "Lab {{lab_id}} p50" }]
+      },
+      {
+        "title": "Turnaround Time by Lab (p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [{ "expr": "histogram_quantile(0.95, rate(golab_request_processing_duration_seconds_bucket{lab_id=~\"$lab\"}[1h]))", "legendFormat": "Lab {{lab_id}} p95" }]
+      },
+      {
+        "title": "Completion Rate by Lab",
+        "type": "bargauge",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [{ "expr": "sum by (lab_id) (increase(golab_transitions_total{to_state=\"completed\", lab_id=~\"$lab\"}[24h])) / sum by (lab_id) (increase(golab_requests_created_total{lab_id=~\"$lab\"}[24h])) * 100", "legendFormat": "Lab {{lab_id}}" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 70 }, { "color": "green", "value": 90 }] } } }
+      },
+      {
+        "title": "Rejection Rate by Lab",
+        "type": "bargauge",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [{ "expr": "sum by (lab_id) (increase(golab_transitions_total{to_state=\"rejected\", lab_id=~\"$lab\"}[24h])) / sum by (lab_id) (increase(golab_transitions_total{lab_id=~\"$lab\"}[24h])) * 100", "legendFormat": "Lab {{lab_id}}" }],
+        "fieldConfig": { "defaults": { "unit": "percent", "max": 100, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 10 }] } } }
+      },
+      {
+        "title": "Certificate Review Duration (p50/p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+        "targets": [
+          { "expr": "histogram_quantile(0.50, rate(golab_certificate_review_duration_seconds_bucket{lab_id=~\"$lab\"}[1h]))", "legendFormat": "{{lab_id}} p50" },
+          { "expr": "histogram_quantile(0.95, rate(golab_certificate_review_duration_seconds_bucket{lab_id=~\"$lab\"}[1h]))", "legendFormat": "{{lab_id}} p95" }
+        ]
+      }
+    ]
+  }
+}

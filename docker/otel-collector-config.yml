@@ -11,6 +11,11 @@ processors:
     timeout: 5s
     send_batch_size: 1024
 
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+    spike_limit_mib: 64
+
 exporters:
   otlp/jaeger:
     endpoint: jaeger:4317
@@ -28,9 +33,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, batch]
       exporters: [otlp/jaeger, debug]
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, batch]
       exporters: [prometheus, debug]

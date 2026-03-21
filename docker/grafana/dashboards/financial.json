@@ -1,0 +1,43 @@
+{
+  "dashboard": {
+    "title": "GoLab - Financial",
+    "uid": "golab-financial",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "1m",
+    "panels": [
+      {
+        "title": "Payments Received (24h)",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+        "targets": [{ "expr": "increase(golab_payments_received_total[24h])", "legendFormat": "Payments" }],
+        "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "color": "green", "value": null }] } } }
+      },
+      {
+        "title": "Revenue Trend (payments/hour)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+        "targets": [{ "expr": "rate(golab_payments_received_total[1h]) * 3600", "legendFormat": "Payments/hour" }],
+        "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 15 } } }
+      },
+      {
+        "title": "Payment Volume by Method",
+        "type": "piechart",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+        "targets": [{ "expr": "increase(golab_payments_received_total[24h])", "legendFormat": "{{payment_method}}" }]
+      },
+      {
+        "title": "Outstanding Invoices",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 12 },
+        "targets": [{ "expr": "golab_active_requests_count - on() increase(golab_payments_received_total[30d])", "legendFormat": "Outstanding" }]
+      },
+      {
+        "title": "Daily Payment Trend",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+        "targets": [{ "expr": "increase(golab_payments_received_total[1d])", "legendFormat": "Daily Payments" }]
+      }
+    ]
+  }
+}

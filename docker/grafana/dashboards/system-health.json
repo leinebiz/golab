@@ -2,6 +2,9 @@
   "dashboard": {
     "title": "GoLab - System Health",
     "uid": "golab-system-health",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "15s",
     "panels": [
       {
         "title": "API Request Rate",
@@ -9,21 +12,113 @@
         "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "rate(golab_api_request_duration_ms_count[5m])",
-            "legendFormat": "{{method}} {{path}}"
+            "expr": "rate(golab_api_request_duration_seconds_count[5m])",
+            "legendFormat": "{{method}} {{route}}"
           }
         ]
       },
       {
-        "title": "API Latency (p95)",
+        "title": "API Latency (p50/p95/p99)",
         "type": "timeseries",
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, rate(golab_api_request_duration_ms_bucket[5m]))",
+            "expr": "histogram_quantile(0.50, rate(golab_api_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(golab_api_request_duration_seconds_bucket[5m]))",
             "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(golab_api_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "title": "Error Rate (5xx)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(golab_api_request_duration_seconds_count{http_status_code=~\"5..\"}[5m]) / rate(golab_api_request_duration_seconds_count[5m]) * 100",
+            "legendFormat": "Error %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 5 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Queue Depth",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "golab_queue_depth",
+            "legendFormat": "{{queue}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 100 },
+                { "color": "red", "value": 500 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Notification Delivery Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(golab_notifications_sent_total[5m]) * 60",
+            "legendFormat": "{{channel}} - {{status}}"
           }
         ]
+      },
+      {
+        "title": "Active Requests Gauge",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "golab_active_requests_count",
+            "legendFormat": "Active"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 50 },
+                { "color": "red", "value": 100 }
+              ]
+            },
+            "max": 200
+          }
+        }
       }
     ]
   }
