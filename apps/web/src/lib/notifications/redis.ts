@@ -1,22 +1,12 @@
-import IORedis from 'ioredis';
-
 /**
- * Shared Redis connection for BullMQ queues.
- * Reuses a singleton in development to avoid exhausting connections.
+ * Redis connection config for BullMQ queues.
+ *
+ * Uses plain connection options (not an IORedis instance) to avoid
+ * version mismatches between the app's ioredis and BullMQ's bundled version.
  */
-const globalForRedis = globalThis as unknown as {
-  bullRedis: IORedis | undefined;
+export const redisConnectionOptions = {
+  host: process.env.REDIS_HOST ?? 'localhost',
+  port: Number(process.env.REDIS_PORT ?? '6379'),
+  password: process.env.REDIS_PASSWORD ?? undefined,
+  maxRetriesPerRequest: null as null, // required by BullMQ
 };
-
-function createRedisConnection(): IORedis {
-  return new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-    maxRetriesPerRequest: null, // required by BullMQ
-    enableReadyCheck: false,
-  });
-}
-
-export const redisConnection: IORedis = globalForRedis.bullRedis ?? createRedisConnection();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForRedis.bullRedis = redisConnection;
-}

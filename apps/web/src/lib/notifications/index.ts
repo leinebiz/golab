@@ -1,9 +1,7 @@
 export { dispatchNotification } from './dispatcher';
 export { notificationMatrix } from './matrix';
 export {
-  portalQueue,
-  emailQueue,
-  whatsappQueue,
+  enqueueNotificationJob,
   createPortalWorker,
   createEmailWorker,
   createWhatsAppWorker,

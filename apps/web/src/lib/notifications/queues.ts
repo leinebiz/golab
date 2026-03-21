@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { prisma } from '@golab/database';
-import { redisConnection } from './redis';
+import { redisConnectionOptions } from './redis';
 import type { NotificationChannel, NotificationJobPayload } from './types';
 import { sendWhatsAppMessage } from '../integrations/whatsapp/twilio-provider';
 
@@ -15,21 +15,18 @@ const defaultJobOptions = {
   removeOnFail: 5000,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const portalQueue = new Queue('notification:portal', {
-  connection: redisConnection,
+  connection: redisConnectionOptions,
   defaultJobOptions,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const emailQueue = new Queue('notification:email', {
-  connection: redisConnection,
+  connection: redisConnectionOptions,
   defaultJobOptions,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const whatsappQueue = new Queue('notification:whatsapp', {
-  connection: redisConnection,
+  connection: redisConnectionOptions,
   defaultJobOptions,
 });
 
@@ -95,7 +92,7 @@ export function createPortalWorker(): Worker<NotificationJobPayload, unknown, st
       await markDelivered(job.data.notificationId);
     },
     {
-      connection: redisConnection,
+      connection: redisConnectionOptions,
       concurrency: 10,
     },
   );
@@ -119,7 +116,7 @@ export function createEmailWorker(): Worker<NotificationJobPayload, unknown, str
       }
     },
     {
-      connection: redisConnection,
+      connection: redisConnectionOptions,
       concurrency: 5,
     },
   );
@@ -149,7 +146,7 @@ export function createWhatsAppWorker(): Worker<NotificationJobPayload, unknown, 
       }
     },
     {
-      connection: redisConnection,
+      connection: redisConnectionOptions,
       concurrency: 3,
     },
   );
