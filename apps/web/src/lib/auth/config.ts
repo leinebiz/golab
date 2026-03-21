@@ -3,6 +3,9 @@ import type { NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/db';
+import { LoginSchema } from '@golab/shared';
 
 export const authConfig: NextAuthConfig = {
   providers: [
@@ -21,13 +24,36 @@ export const authConfig: NextAuthConfig = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        const parsed = LoginSchema.safeParse(credentials);
+        if (!parsed.success) return null;
 
-        // Credential validation is handled by the auth pages worker
-        // This is the placeholder that will be filled in by Unit 1
-        return null;
+        const { email, password } = parsed.data;
+
+        const user = await prisma.user.findUnique({
+          where: { email: email.toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            role: true,
+            organizationId: true,
+            isActive: true,
+          },
+        });
+
+        if (!user?.passwordHash || !user.isActive) return null;
+
+        const passwordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!passwordValid) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          organizationId: user.organizationId,
+        };
       },
     }),
   ],
@@ -40,28 +66,24 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        token.role = (user as any).role;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        token.organizationId = (user as any).organizationId;
+        token.role = (user as unknown as Record<string, unknown>).role;
+        token.organizationId = (user as unknown as Record<string, unknown>).organizationId;
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (session.user as any).role = token.role;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (session.user as any).organizationId = token.organizationId;
+        (session.user as unknown as Record<string, unknown>).role = token.role;
+        (session.user as unknown as Record<string, unknown>).organizationId = token.organizationId;
       }
       return session;
     },
     async authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isOnPortal = nextUrl.pathname.startsWith('/portal');
-      const isOnAuth = nextUrl.pathname.startsWith('/login') ||
-        nextUrl.pathname.startsWith('/register');
+      const isOnAuth =
+        nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
 
       if (isOnPortal) {
         if (!isLoggedIn) return false;
@@ -77,7 +99,7 @@ export const authConfig: NextAuthConfig = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 24 * 60 * 60,
   },
 };
 
