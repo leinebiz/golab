@@ -1,0 +1,30 @@
+{
+  "dashboard": {
+    "title": "GoLab - System Health",
+    "uid": "golab-system-health",
+    "panels": [
+      {
+        "title": "API Request Rate",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_api_request_duration_ms_count[5m])",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "API Latency (p95)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(golab_api_request_duration_ms_bucket[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      }
+    ]
+  }
+}

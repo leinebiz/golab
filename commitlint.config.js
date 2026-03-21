@@ -1,0 +1,31 @@
+export default {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'scope-enum': [
+      2,
+      'always',
+      [
+        'auth',
+        'requests',
+        'workflow',
+        'payments',
+        'courier',
+        'lab',
+        'certificates',
+        'notifications',
+        'chat',
+        'reports',
+        'admin',
+        'finance',
+        'pdf',
+        'observability',
+        'db',
+        'ui',
+        'api',
+        'deps',
+        'ci',
+        'docker',
+      ],
+    ],
+  },
+};

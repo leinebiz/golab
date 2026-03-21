@@ -1,0 +1,816 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  CUSTOMER_ADMIN
+  CUSTOMER_USER
+  LAB_ADMIN
+  LAB_TECHNICIAN
+  GOLAB_ADMIN
+  GOLAB_REVIEWER
+  GOLAB_FINANCE
+  SYSTEM
+}
+
+enum OrgType {
+  CUSTOMER
+  LABORATORY
+  GOLAB
+}
+
+enum PaymentType {
+  CREDIT
+  COD
+}
+
+enum CreditStatus {
+  NOT_APPLIED
+  PENDING_REVIEW
+  APPROVED
+  DECLINED
+  SUSPENDED
+}
+
+enum RequestStatus {
+  DRAFT
+  QUOTE_CALCULATED
+  PENDING_CUSTOMER_REVIEW
+  ACCEPTED_BY_CUSTOMER
+  INVOICE_GENERATED
+  AWAITING_COD_PAYMENT
+  PAYMENT_RECEIVED
+  CREDIT_APPROVED_FOR_REQUEST
+  IN_PROGRESS
+  PENDING_CUSTOMER_ACTION
+  CLOSED
+  CANCELLED
+  ON_HOLD
+}
+
+enum SubRequestStatus {
+  PICKUP_REQUESTED
+  WAYBILL_AVAILABLE
+  PICKUP_SCHEDULED
+  AWAITING_COLLECTION
+  SAMPLE_COLLECTED
+  IN_TRANSIT_TO_LAB
+  DELIVERED_TO_LAB
+  SAMPLE_ACCEPTED_BY_LAB
+  SAMPLE_EXCEPTION_LOGGED
+  TESTING_SCHEDULED
+  TESTING_IN_PROGRESS
+  TESTING_DELAYED
+  TESTING_COMPLETED
+  AWAITING_GOLAB_REVIEW
+  RETURNED_TO_LAB
+  ON_HOLD_WITH_GOLAB
+  APPROVED_FOR_RELEASE
+  RELEASED_TO_CUSTOMER
+  LAB_ALLOCATION_EXCEPTION
+  PICKUP_EXCEPTION
+  SAMPLE_REJECTED
+}
+
+enum AccreditationStatus {
+  ACCREDITED
+  NON_ACCREDITED
+}
+
+enum TurnaroundType {
+  STANDARD
+  EXPEDITED
+}
+
+enum SampleIssueType {
+  INSUFFICIENT_SAMPLE
+  SAMPLE_DAMAGED
+  INCORRECT_TEST_CHOSEN
+  INCORRECT_PACKAGING
+  OTHER
+}
+
+enum CertificateFormat {
+  LAB_ORIGINAL
+  GOLAB_BRANDED
+}
+
+enum CertificateReviewAction {
+  APPROVED
+  RETURNED_TO_LAB
+  ON_HOLD
+  REPLICATED_TO_GOLAB_FORMAT
+}
+
+enum CustomerAction {
+  ACCEPT_AND_CLOSE
+  REQUEST_CALLBACK
+  RETEST
+  SEND_TO_ANOTHER_LAB
+  ADDITIONAL_TESTING
+}
+
+enum NotificationChannel {
+  PORTAL
+  EMAIL
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAYMENT_LINK_SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  CREDITED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+enum WaybillStatus {
+  BOOKED
+  COLLECTED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+enum AddressType {
+  BILLING
+  COLLECTION
+  DELIVERY
+  LAB_RECEIVING
+}
+
+enum DisclaimerType {
+  CUSTOMER_TERMS
+  CUSTOMER_TESTING
+  CUSTOMER_SAMPLE_HANDLING
+  LAB_CONFIDENTIALITY
+  LAB_SERVICE_TERMS
+}
+
+// ============================================================
+// IDENTITY & ORGANIZATIONS
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  name          String
+  phone         String?
+  avatarUrl     String?
+  role          UserRole
+  isActive      Boolean   @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  accounts       Account[]
+  sessions       Session[]
+  auditLogs      AuditLog[]    @relation("AuditActor")
+  notifications  Notification[]
+
+  preferredChannel NotificationChannel @default(EMAIL)
+  whatsappNumber   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String
+  providerAccountId String
+  type              String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique
+  expires      DateTime
+  ipAddress    String?
+  userAgent    String?
+
+  createdAt DateTime @default(now())
+}
+
+model Organization {
+  id                 String  @id @default(cuid())
+  name               String
+  registrationNumber String?
+  vatNumber          String?
+  industry           String?
+  type               OrgType
+
+  users                  User[]
+  addresses              Address[]
+  creditAccount          CreditAccount?
+  defaultTolerances      DefaultTolerance[]
+  requests               Request[]
+  disclaimerAcceptances  DisclaimerAcceptance[]
+  laboratories           Laboratory[]
+
+  paymentType          PaymentType         @default(COD)
+  preferredCommChannel NotificationChannel @default(EMAIL)
+
+  labLocation     Json?
+  labTests        LabTest[]
+  labContactEmail String?
+  labContactPhone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+}
+
+model Address {
+  id             String      @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           AddressType
+  line1          String
+  line2          String?
+  city           String
+  province       String
+  postalCode     String
+  country        String      @default("ZA")
+  location       Json?
+  isDefault      Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+// ============================================================
+// CREDIT & FINANCIAL
+// ============================================================
+
+model CreditAccount {
+  id                 String       @id @default(cuid())
+  organizationId     String       @unique
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  status             CreditStatus @default(NOT_APPLIED)
+  creditLimit        Decimal      @db.Decimal(12, 2) @default(0)
+  availableCredit    Decimal      @db.Decimal(12, 2) @default(0)
+  outstandingBalance Decimal      @db.Decimal(12, 2) @default(0)
+
+  applicationDate DateTime?
+  applicationDocs Json?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// TEST CATALOGUE & LABORATORY DIRECTORY
+// ============================================================
+
+model TestCatalogue {
+  id                  String              @id @default(cuid())
+  code                String              @unique
+  name                String
+  description         String?
+  category            String
+  accreditation       AccreditationStatus
+  standardTatDays     Int
+  expeditedTatDays    Int?
+  basePrice           Decimal             @db.Decimal(10, 2)
+  expediteSurcharge   Decimal?            @db.Decimal(10, 2)
+  toleranceApplicable Boolean             @default(false)
+  toleranceUnit       String?
+  isActive            Boolean             @default(true)
+
+  labTests          LabTest[]
+  subRequestTests   SubRequestTest[]
+  defaultTolerances DefaultTolerance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model Laboratory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  code           String       @unique
+  name           String
+  location       Json
+  contactEmail   String
+  contactPhone   String
+  isActive       Boolean      @default(true)
+
+  labTests    LabTest[]
+  subRequests SubRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LabTest {
+  id              String              @id @default(cuid())
+  laboratoryId    String
+  laboratory      Laboratory          @relation(fields: [laboratoryId], references: [id])
+  testCatalogueId String
+  testCatalogue   TestCatalogue       @relation(fields: [testCatalogueId], references: [id])
+  accreditation   AccreditationStatus
+  labTatDays      Int
+  labPrice        Decimal?            @db.Decimal(10, 2)
+  isActive        Boolean             @default(true)
+
+  // Also link to Organization for lab-as-org queries
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([laboratoryId, testCatalogueId])
+  @@index([testCatalogueId])
+}
+
+// ============================================================
+// TOLERANCES
+// ============================================================
+
+model DefaultTolerance {
+  id              String        @id @default(cuid())
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  testCatalogueId String
+  testCatalogue   TestCatalogue @relation(fields: [testCatalogueId], references: [id])
+  minValue        Decimal?      @db.Decimal(12, 6)
+  maxValue        Decimal?      @db.Decimal(12, 6)
+  unit            String
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, testCatalogueId])
+}
+
+model RequestTolerance {
+  id               String         @id @default(cuid())
+  subRequestTestId String
+  subRequestTest   SubRequestTest @relation(fields: [subRequestTestId], references: [id])
+  minValue         Decimal?       @db.Decimal(12, 6)
+  maxValue         Decimal?       @db.Decimal(12, 6)
+  unit             String
+  notes            String?
+  overridesDefault Boolean        @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// REQUESTS (MASTER + SUB-REQUESTS)
+// ============================================================
+
+model Request {
+  id             String        @id @default(cuid())
+  reference      String        @unique
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  createdById    String
+  status         RequestStatus @default(DRAFT)
+
+  turnaroundType      TurnaroundType @default(STANDARD)
+  collectionAddressId String?
+  specialInstructions String?
+
+  subRequests       SubRequest[]
+  quote             Quote?
+  invoice           Invoice?
+  statusTransitions StatusTransition[]
+  notifications     Notification[]
+
+  customerAction      CustomerAction?
+  customerActionDate  DateTime?
+  customerActionNotes String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  acceptedAt DateTime?
+  closedAt   DateTime?
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([reference])
+  @@index([createdAt])
+}
+
+model SubRequest {
+  id           String           @id @default(cuid())
+  subReference String           @unique
+  requestId    String
+  request      Request          @relation(fields: [requestId], references: [id])
+  laboratoryId String
+  laboratory   Laboratory       @relation(fields: [laboratoryId], references: [id])
+  status       SubRequestStatus @default(PICKUP_REQUESTED)
+
+  labAcceptedAt      DateTime?
+  labAcceptedBy      String?
+  testingStartedAt   DateTime?
+  testingCompletedAt DateTime?
+  expectedCompletionAt DateTime?
+  delayReason        String?
+
+  tests             SubRequestTest[]
+  waybill           Waybill?
+  sampleIssues      SampleIssue[]
+  certificates      Certificate[]
+  statusTransitions StatusTransition[]
+  notifications     Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([laboratoryId])
+  @@index([status])
+}
+
+model SubRequestTest {
+  id                    String        @id @default(cuid())
+  subRequestId          String
+  subRequest            SubRequest    @relation(fields: [subRequestId], references: [id])
+  testCatalogueId       String
+  testCatalogue         TestCatalogue @relation(fields: [testCatalogueId], references: [id])
+  sampleCount           Int
+  accreditationRequired Boolean       @default(false)
+  unitPrice             Decimal       @db.Decimal(10, 2)
+  totalPrice            Decimal       @db.Decimal(10, 2)
+
+  tolerances RequestTolerance[]
+
+  createdAt DateTime @default(now())
+
+  @@index([subRequestId])
+}
+
+// ============================================================
+// QUOTES & INVOICES
+// ============================================================
+
+model Quote {
+  id                String  @id @default(cuid())
+  requestId         String  @unique
+  request           Request @relation(fields: [requestId], references: [id])
+  quoteNumber       String  @unique
+  subtotal          Decimal @db.Decimal(12, 2)
+  expediteSurcharge Decimal @db.Decimal(12, 2) @default(0)
+  logisticsCost     Decimal @db.Decimal(12, 2) @default(0)
+  adminFee          Decimal @db.Decimal(12, 2) @default(0)
+  vatRate           Decimal @db.Decimal(5, 4)  @default(0.15)
+  vatAmount         Decimal @db.Decimal(12, 2)
+  totalAmount       Decimal @db.Decimal(12, 2)
+
+  lineItems Json
+
+  isAccepted Boolean?
+  acceptedAt DateTime?
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  requestId     String        @unique
+  request       Request       @relation(fields: [requestId], references: [id])
+  invoiceNumber String        @unique
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal       @db.Decimal(12, 2)
+  vatAmount     Decimal       @db.Decimal(12, 2)
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  lineItems     Json
+
+  paymentLinkUrl String?
+  paymentLinkId  String?
+  paidAt         DateTime?
+  paymentReference String?
+
+  pdfKey String?
+
+  dueDate  DateTime
+  issuedAt DateTime?
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id])
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("ZAR")
+  status            PaymentStatus @default(PENDING)
+  provider          String        @default("stripe")
+  providerPaymentId String?
+  providerData      Json?
+  confirmedAt       DateTime?
+  failedReason      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([providerPaymentId])
+}
+
+// ============================================================
+// LOGISTICS
+// ============================================================
+
+model Waybill {
+  id               String       @id @default(cuid())
+  subRequestId     String       @unique
+  subRequest       SubRequest   @relation(fields: [subRequestId], references: [id])
+  waybillNumber    String       @unique
+  courierProvider  String
+  courierBookingId String?
+
+  collectionAddress Json
+  deliveryAddress   Json
+
+  status            WaybillStatus @default(BOOKED)
+  collectedAt       DateTime?
+  deliveredAt       DateTime?
+  estimatedDelivery DateTime?
+
+  pdfKey String?
+
+  trackingEvents Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// CERTIFICATES & RESULTS
+// ============================================================
+
+model Certificate {
+  id           String            @id @default(cuid())
+  subRequestId String
+  subRequest   SubRequest        @relation(fields: [subRequestId], references: [id])
+  uploadedById String
+  format       CertificateFormat
+  version      Int               @default(1)
+
+  originalFileKey String
+  golabFileKey    String?
+  fileName        String
+  mimeType        String
+
+  isValidated      Boolean @default(false)
+  validationErrors Json?
+  validatedAt      DateTime?
+
+  reviewAction CertificateReviewAction?
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  releasedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subRequestId])
+}
+
+model SampleIssue {
+  id           String          @id @default(cuid())
+  subRequestId String
+  subRequest   SubRequest      @relation(fields: [subRequestId], references: [id])
+  reportedById String
+  issueType    SampleIssueType
+  comments     String
+  resolution   String?
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subRequestId])
+}
+
+// ============================================================
+// DISCLAIMERS
+// ============================================================
+
+model Disclaimer {
+  id       String         @id @default(cuid())
+  type     DisclaimerType
+  version  Int
+  title    String
+  content  String         @db.Text
+  isActive Boolean        @default(true)
+
+  acceptances DisclaimerAcceptance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, version])
+}
+
+model DisclaimerAcceptance {
+  id             String       @id @default(cuid())
+  disclaimerId   String
+  disclaimer     Disclaimer   @relation(fields: [disclaimerId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  acceptedById   String
+  acceptedAt     DateTime     @default(now())
+  ipAddress      String?
+
+  @@unique([disclaimerId, organizationId])
+  @@index([organizationId])
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id])
+  requestId    String?
+  request      Request?            @relation(fields: [requestId], references: [id])
+  subRequestId String?
+  subRequest   SubRequest?         @relation(fields: [subRequestId], references: [id])
+
+  channel  NotificationChannel
+  status   NotificationStatus  @default(PENDING)
+  type     String
+  title    String
+  body     String
+  metadata Json?
+
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([requestId])
+  @@index([type])
+}
+
+// ============================================================
+// AUDIT TRAIL
+// ============================================================
+
+model AuditLog {
+  id         String  @id @default(cuid())
+  actorId    String?
+  actor      User?   @relation("AuditActor", fields: [actorId], references: [id])
+  actorType  String  @default("user")
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================================
+// STATUS TRANSITIONS (Workflow Audit)
+// ============================================================
+
+model StatusTransition {
+  id           String      @id @default(cuid())
+  requestId    String?
+  request      Request?    @relation(fields: [requestId], references: [id])
+  subRequestId String?
+  subRequest   SubRequest? @relation(fields: [subRequestId], references: [id])
+  fromStatus   String
+  toStatus     String
+  triggeredBy  String
+  reason       String?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([subRequestId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// RAG / SUPPORT CHAT
+// ============================================================
+
+model ChatConversation {
+  id             String  @id @default(cuid())
+  userId         String
+  organizationId String
+  title          String?
+  isResolved     Boolean @default(false)
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id])
+  role           String
+  content        String           @db.Text
+  sources        Json?
+  tokenCount     Int?
+
+  createdAt DateTime @default(now())
+}
+
+model DocumentEmbedding {
+  id         String                       @id @default(cuid())
+  sourceType String
+  sourceId   String
+  chunkIndex Int
+  content    String                       @db.Text
+  embedding  Unsupported("vector(1536)")
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([sourceType])
+}
