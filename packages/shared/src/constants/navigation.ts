@@ -24,6 +24,12 @@ export const CUSTOMER_NAV: NavItem[] = [
     badgeKey: 'unreadMessages',
   },
   { label: 'Settings', href: '/portal/customer/settings', icon: 'Settings' },
+  {
+    label: "What's New",
+    href: '/portal/customer/whats-new',
+    icon: 'Sparkles',
+    badgeKey: 'unreadReleases',
+  },
 ];
 
 export const LAB_NAV: NavItem[] = [

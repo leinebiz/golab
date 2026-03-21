@@ -25,6 +25,7 @@ export default {
         'deps',
         'ci',
         'docker',
+        'release',
       ],
     ],
   },

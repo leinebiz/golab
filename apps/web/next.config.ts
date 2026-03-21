@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@golab/pdf-templates", "@golab/shared", "@golab/database"],
 };
 
 export default nextConfig;

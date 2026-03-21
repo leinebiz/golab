@@ -24,6 +24,7 @@ import {
   Receipt,
   Banknote,
   Building,
+  Sparkles,
   ChevronLeft,
   ChevronRight,
   type LucideIcon,
@@ -54,6 +55,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Receipt,
   Banknote,
   Building,
+  Sparkles,
 };
 
 interface SidebarProps {
