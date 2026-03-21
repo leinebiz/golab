@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               status: true,
+              expectedCompletionAt: true,
               laboratory: { select: { name: true } },
               tests: {
                 select: {
@@ -53,14 +54,23 @@ export async function GET(req: NextRequest) {
       prisma.request.count({ where }),
     ]);
 
-    const data = requests.map((r) => ({
-      id: r.id,
-      reference: r.reference,
-      status: r.status,
-      testsCount: r.subRequests.reduce((acc, sr) => acc + sr.tests.length, 0),
-      labs: [...new Set(r.subRequests.map((sr) => sr.laboratory.name))],
-      createdAt: r.createdAt.toISOString(),
-    }));
+    const data = requests.map((r) => {
+      const etaDates = r.subRequests.map((sr) => sr.expectedCompletionAt).filter(Boolean) as Date[];
+      const eta =
+        etaDates.length > 0
+          ? new Date(Math.min(...etaDates.map((d) => d.getTime()))).toISOString()
+          : null;
+
+      return {
+        id: r.id,
+        reference: r.reference,
+        status: r.status,
+        testsCount: r.subRequests.reduce((acc, sr) => acc + sr.tests.length, 0),
+        labs: [...new Set(r.subRequests.map((sr) => sr.laboratory.name))],
+        createdAt: r.createdAt.toISOString(),
+        eta,
+      };
+    });
 
     return NextResponse.json({
       data,

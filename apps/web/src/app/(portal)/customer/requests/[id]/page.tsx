@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Phone, RefreshCw, CheckCircle, XCircle, Download } from 'lucide-react';
+import { ChevronRight, Phone, RefreshCw, CheckCircle, XCircle, Download, Send } from 'lucide-react';
 import { ProgressBar } from '@/components/request/progress-bar';
 import { StatusBadge } from '@/components/request/status-badge';
 import { StatusTimeline } from '@/components/request/status-timeline';
@@ -315,6 +315,13 @@ function CustomerActions({
         >
           <RefreshCw className="h-4 w-4" />
           Request Retest
+        </button>
+        <button
+          disabled={actionLoading}
+          className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" />
+          Send to Another Lab
         </button>
       </div>
     );

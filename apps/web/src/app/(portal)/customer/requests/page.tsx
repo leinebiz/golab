@@ -16,6 +16,7 @@ interface RequestListItem {
   testsCount: number;
   labs: string[];
   createdAt: string;
+  eta: string | null;
 }
 
 interface PaginationMeta {
@@ -124,6 +125,18 @@ export default function CustomerRequestsPage() {
             month: 'short',
             year: 'numeric',
           }),
+      },
+      {
+        id: 'eta',
+        header: 'ETA',
+        cell: ({ row }) =>
+          row.original.eta
+            ? new Date(row.original.eta).toLocaleDateString('en-ZA', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '-',
       },
       {
         id: 'actions',
@@ -272,6 +285,15 @@ export default function CustomerRequestsPage() {
                   {item.testsCount} test{item.testsCount !== 1 ? 's' : ''}
                 </span>
                 <span>{item.labs.join(', ') || 'No lab assigned'}</span>
+                {item.eta && (
+                  <span>
+                    ETA:{' '}
+                    {new Date(item.eta).toLocaleDateString('en-ZA', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </span>
+                )}
               </div>
             </Link>
           ))
