@@ -92,6 +92,11 @@ export const REQUEST_TRANSITIONS: StateTransition<RequestStatus>[] = [
     to: 'PENDING_CUSTOMER_REVIEW',
     roles: ['GOLAB_ADMIN'],
   },
+  {
+    from: ['IN_PROGRESS', 'PENDING_CUSTOMER_ACTION'],
+    to: 'CLOSED',
+    roles: ['SYSTEM'],
+  },
 ];
 
 export const SUB_REQUEST_TRANSITIONS: StateTransition<SubRequestStatus>[] = [
