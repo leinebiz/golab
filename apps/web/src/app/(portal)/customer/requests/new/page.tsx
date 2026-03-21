@@ -320,7 +320,7 @@ export default function NewRequestPage() {
       }
     }
     if (currentStep < 6) setCurrentStep((s) => s + 1);
-  }, [currentStep, computeRouting, watchedTurnaround]);
+  }, [currentStep, computeRouting, watchedTurnaround, testCatalogueMap]);
 
   const goBack = useCallback(() => {
     if (currentStep > 1) setCurrentStep((s) => s - 1);
