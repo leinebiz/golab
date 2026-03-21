@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { RegisterSchema, type RegisterInput } from '@golab/shared';
+import { RegisterSchema } from '@golab/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,9 +29,25 @@ const STEPS = [
   { title: 'Payment', description: 'Payment preference' },
 ] as const;
 
-type FormFields = keyof RegisterInput;
+type FieldName =
+  | 'email'
+  | 'password'
+  | 'confirmPassword'
+  | 'name'
+  | 'phone'
+  | 'companyName'
+  | 'registrationNumber'
+  | 'vatNumber'
+  | 'industry'
+  | 'addressLine1'
+  | 'addressLine2'
+  | 'city'
+  | 'province'
+  | 'postalCode'
+  | 'country'
+  | 'paymentType';
 
-const STEP_FIELDS: Record<number, FormFields[]> = {
+const STEP_FIELDS: Record<number, FieldName[]> = {
   0: ['email', 'password', 'confirmPassword', 'name'],
   1: ['companyName'],
   2: ['addressLine1', 'city', 'province', 'postalCode'],
@@ -50,9 +66,23 @@ export default function RegisterPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<RegisterInput>({
+  } = useForm({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+      name: '',
+      phone: '',
+      companyName: '',
+      registrationNumber: '',
+      vatNumber: '',
+      industry: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      province: '',
+      postalCode: '',
       country: 'ZA',
       paymentType: 'COD' as const,
     },
@@ -71,7 +101,7 @@ export default function RegisterPage() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  async function onSubmit(data: RegisterInput) {
+  async function onSubmit(data: Record<string, unknown>) {
     setIsLoading(true);
     try {
       const response = await fetch('/api/v1/auth/register', {

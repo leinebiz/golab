@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
 
 type VerificationState = 'loading' | 'success' | 'error' | 'missing-token';
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [state, setState] = useState<VerificationState>(token ? 'loading' : 'missing-token');
@@ -97,5 +97,27 @@ export default function VerifyEmailPage() {
         </Link>
       </CardFooter>
     </Card>
+  );
+}
+
+function VerifyEmailFallback() {
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle>Verifying email</CardTitle>
+        <CardDescription>Loading...</CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-center py-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<VerifyEmailFallback />}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

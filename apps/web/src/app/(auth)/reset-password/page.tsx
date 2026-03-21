@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -20,7 +20,7 @@ import {
 import { PasswordStrength } from '@/components/auth/password-strength';
 import { toast } from '@/hooks/use-toast';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const [isLoading, setIsLoading] = useState(false);
@@ -146,5 +146,27 @@ export default function ResetPasswordPage() {
         </Link>
       </CardFooter>
     </Card>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle>Reset password</CardTitle>
+        <CardDescription>Loading...</CardDescription>
+      </CardHeader>
+      <CardContent className="flex justify-center py-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

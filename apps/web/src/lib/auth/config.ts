@@ -66,16 +66,16 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as Record<string, unknown>).role;
-        token.organizationId = (user as Record<string, unknown>).organizationId;
+        token.role = (user as unknown as Record<string, unknown>).role;
+        token.organizationId = (user as unknown as Record<string, unknown>).organizationId;
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
-        (session.user as Record<string, unknown>).role = token.role;
-        (session.user as Record<string, unknown>).organizationId = token.organizationId;
+        (session.user as unknown as Record<string, unknown>).role = token.role;
+        (session.user as unknown as Record<string, unknown>).organizationId = token.organizationId;
       }
       return session;
     },
