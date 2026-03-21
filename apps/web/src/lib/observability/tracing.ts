@@ -1,11 +1,20 @@
-// OpenTelemetry instrumentation — loaded via NODE_OPTIONS or instrumentation.ts
-// This module is imported at app startup to initialize tracing.
+/**
+ * OpenTelemetry tracing helpers.
+ *
+ * The actual SDK initialisation lives in ./instrumentation.ts and is
+ * bootstrapped via the Next.js instrumentation hook at src/instrumentation.ts.
+ *
+ * This module re-exports the OTel API so business code can create custom
+ * spans without depending on the SDK directly.
+ */
+import { trace, context, SpanStatusCode } from '@opentelemetry/api';
 
-// Tracing is configured via environment variables:
-// OTEL_EXPORTER_OTLP_ENDPOINT - OTel collector endpoint
-// OTEL_SERVICE_NAME - Service name (default: golab-portal)
+export const OTEL_SERVICE_NAME =
+  process.env.OTEL_SERVICE_NAME ?? 'golab-portal';
 
-// The actual initialization is handled by @opentelemetry/auto-instrumentations-node
-// which auto-instruments: HTTP, Prisma, fetch, etc.
+/** Get a tracer scoped to a subsystem (e.g. "golab.requests") */
+export function getTracer(name: string) {
+  return trace.getTracer(name);
+}
 
-export const OTEL_SERVICE_NAME = process.env.OTEL_SERVICE_NAME ?? 'golab-portal';
+export { trace, context, SpanStatusCode };

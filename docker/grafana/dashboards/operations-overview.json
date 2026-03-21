@@ -1,0 +1,92 @@
+{
+  "dashboard": {
+    "title": "GoLab - Operations Overview",
+    "uid": "golab-operations-overview",
+    "tags": ["golab"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Requests Created (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_requests_created_total[5m]) * 60",
+            "legendFormat": "created/min"
+          }
+        ]
+      },
+      {
+        "title": "Requests Completed (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(golab_requests_completed_total[5m]) * 60",
+            "legendFormat": "completed/min"
+          }
+        ]
+      },
+      {
+        "title": "Active Requests",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+        "targets": [
+          {
+            "expr": "golab_requests_active",
+            "legendFormat": "active"
+          }
+        ]
+      },
+      {
+        "title": "Certificates Uploaded vs Reviewed",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(golab_certificates_uploaded_total[5m]) * 60",
+            "legendFormat": "uploaded/min"
+          },
+          {
+            "expr": "rate(golab_certificates_reviewed_total[5m]) * 60",
+            "legendFormat": "reviewed/min"
+          }
+        ]
+      },
+      {
+        "title": "Review Queue Depth",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "golab_review_queue_depth",
+            "legendFormat": "queue depth"
+          }
+        ]
+      },
+      {
+        "title": "Notifications Sent (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+        "targets": [
+          {
+            "expr": "rate(golab_notifications_sent_total[5m]) * 60",
+            "legendFormat": "sent/min"
+          }
+        ]
+      },
+      {
+        "title": "Webhook Events Received (rate/min)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(golab_webhook_received_total[5m]) * 60",
+            "legendFormat": "webhooks/min"
+          }
+        ]
+      }
+    ]
+  }
+}
