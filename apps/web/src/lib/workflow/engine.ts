@@ -66,7 +66,7 @@ export async function executeTransition(params: TransitionParams): Promise<void>
   }
 
   // Perform the transition in a transaction
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: typeof prisma) => {
     // Update status
     if (entityType === 'Request') {
       await tx.request.update({
@@ -106,7 +106,13 @@ export async function executeTransition(params: TransitionParams): Promise<void>
   }
 
   logger.info(
-    { entityType, entityId, fromStatus: currentStatus, toStatus: targetStatus, actor: triggeredBy.userId },
+    {
+      entityType,
+      entityId,
+      fromStatus: currentStatus,
+      toStatus: targetStatus,
+      actor: triggeredBy.userId,
+    },
     'workflow.transition',
   );
 }

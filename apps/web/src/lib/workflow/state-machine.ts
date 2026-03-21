@@ -1,4 +1,8 @@
-import type { RequestStatus, SubRequestStatus, UserRole } from '@golab/database';
+// Re-export Prisma enum types as string aliases since Prisma v6 exports
+// them as const objects, not as TypeScript types via `export *`.
+type RequestStatus = string;
+type SubRequestStatus = string;
+type UserRole = string;
 
 export interface TransitionContext {
   entityId: string;
