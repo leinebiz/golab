@@ -1,12 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(value);
-}
+import { formatZAR } from '@/lib/finance/format';
+import { PAYMENT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 
 const SUMMARY = {
   totalOutstanding: 0,
@@ -24,12 +19,6 @@ const RECENT_PAYMENTS: {
   status: 'CONFIRMED' | 'PENDING' | 'FAILED';
 }[] = [];
 
-const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive'> = {
-  CONFIRMED: 'success',
-  PENDING: 'warning',
-  FAILED: 'destructive',
-};
-
 export default function FinanceDashboardPage() {
   return (
     <div className="space-y-6">
@@ -45,7 +34,7 @@ export default function FinanceDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-orange-600">
-              {formatCurrency(SUMMARY.totalOutstanding)}
+              {formatZAR(SUMMARY.totalOutstanding)}
             </p>
           </CardContent>
         </Card>
@@ -55,7 +44,7 @@ export default function FinanceDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              {formatCurrency(SUMMARY.totalPaidThisMonth)}
+              {formatZAR(SUMMARY.totalPaidThisMonth)}
             </p>
           </CardContent>
         </Card>
@@ -104,7 +93,7 @@ export default function FinanceDashboardPage() {
                     <tr key={payment.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{payment.invoiceNumber}</td>
                       <td className="py-3 pr-4">{payment.organization}</td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(payment.amount)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(payment.amount)}</td>
                       <td className="py-3 pr-4">{payment.date}</td>
                       <td className="py-3">
                         <Badge variant={PAYMENT_STATUS_VARIANT[payment.status]}>

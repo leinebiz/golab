@@ -1,5 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatZAR } from '@/lib/finance/format';
+import { INVOICE_STATUS_VARIANT } from '@/lib/finance/status-variants';
 
 type InvoiceStatus =
   | 'DRAFT'
@@ -10,19 +12,6 @@ type InvoiceStatus =
   | 'CANCELLED'
   | 'CREDITED';
 
-const STATUS_VARIANT: Record<
-  InvoiceStatus,
-  'default' | 'success' | 'warning' | 'destructive' | 'secondary'
-> = {
-  DRAFT: 'secondary',
-  ISSUED: 'default',
-  PAYMENT_LINK_SENT: 'warning',
-  PAID: 'success',
-  OVERDUE: 'destructive',
-  CANCELLED: 'secondary',
-  CREDITED: 'default',
-};
-
 const PLACEHOLDER_INVOICES: {
   id: string;
   invoiceNumber: string;
@@ -32,13 +21,6 @@ const PLACEHOLDER_INVOICES: {
   dueDate: string;
   issuedAt: string;
 }[] = [];
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(value);
-}
 
 export default function InvoicesPage() {
   return (
@@ -74,9 +56,9 @@ export default function InvoicesPage() {
                     <tr key={invoice.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{invoice.invoiceNumber}</td>
                       <td className="py-3 pr-4">{invoice.organization}</td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(invoice.totalAmount)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(invoice.totalAmount)}</td>
                       <td className="py-3 pr-4">
-                        <Badge variant={STATUS_VARIANT[invoice.status]}>
+                        <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
                           {invoice.status.replace(/_/g, ' ')}
                         </Badge>
                       </td>

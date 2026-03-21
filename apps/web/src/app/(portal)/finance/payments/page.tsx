@@ -1,25 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatZAR } from '@/lib/finance/format';
+import { PAYMENT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 
 type PaymentStatus = 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED';
-
-const STATUS_VARIANT: Record<
-  PaymentStatus,
-  'default' | 'success' | 'warning' | 'destructive' | 'secondary'
-> = {
-  PENDING: 'warning',
-  PROCESSING: 'default',
-  CONFIRMED: 'success',
-  FAILED: 'destructive',
-  REFUNDED: 'secondary',
-};
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(value);
-}
 
 const PLACEHOLDER_PAYMENTS: {
   id: string;
@@ -67,10 +51,12 @@ export default function PaymentsPage() {
                     <tr key={payment.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{payment.invoiceNumber}</td>
                       <td className="py-3 pr-4">{payment.organization}</td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(payment.amount)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(payment.amount)}</td>
                       <td className="py-3 pr-4 capitalize">{payment.provider}</td>
                       <td className="py-3 pr-4">
-                        <Badge variant={STATUS_VARIANT[payment.status]}>{payment.status}</Badge>
+                        <Badge variant={PAYMENT_STATUS_VARIANT[payment.status]}>
+                          {payment.status}
+                        </Badge>
                       </td>
                       <td className="py-3">{payment.createdAt}</td>
                     </tr>

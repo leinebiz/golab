@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { formatZAR, formatDate } from '@/lib/finance/format';
+import { CREDIT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 
 type CreditStatus = 'NOT_APPLIED' | 'PENDING_REVIEW' | 'APPROVED' | 'DECLINED' | 'SUSPENDED';
 
@@ -18,33 +20,6 @@ interface CreditApplication {
   applicationDate: string;
   requestedLimit: string;
   reason: string;
-}
-
-const STATUS_VARIANT: Record<
-  CreditStatus,
-  'default' | 'success' | 'warning' | 'destructive' | 'secondary'
-> = {
-  NOT_APPLIED: 'secondary',
-  PENDING_REVIEW: 'warning',
-  APPROVED: 'success',
-  DECLINED: 'destructive',
-  SUSPENDED: 'destructive',
-};
-
-function formatCurrency(value: string): string {
-  const num = parseFloat(value);
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(num);
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString('en-ZA', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 const PLACEHOLDER_APPLICATIONS: CreditApplication[] = [];
@@ -121,7 +96,7 @@ export default function CreditApplicationsPage() {
             <CardTitle>Reviewing: {selectedApp.organizationName}</CardTitle>
             <CardDescription>
               Applied on {formatDate(selectedApp.applicationDate)} -- Requested{' '}
-              {formatCurrency(selectedApp.requestedLimit)}
+              {formatZAR(selectedApp.requestedLimit)}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -132,7 +107,7 @@ export default function CreditApplicationsPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Requested Limit</p>
-                <p className="font-medium">{formatCurrency(selectedApp.requestedLimit)}</p>
+                <p className="font-medium">{formatZAR(selectedApp.requestedLimit)}</p>
               </div>
               <div className="md:col-span-2">
                 <p className="text-sm text-gray-500">Reason</p>
@@ -255,7 +230,7 @@ export default function CreditApplicationsPage() {
                   {pendingApplications.map((app) => (
                     <tr key={app.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{app.organizationName}</td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(app.requestedLimit)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(app.requestedLimit)}</td>
                       <td className="py-3 pr-4">{formatDate(app.applicationDate)}</td>
                       <td className="py-3">
                         <Button size="sm" onClick={() => setSelectedApp(app)}>
@@ -294,11 +269,11 @@ export default function CreditApplicationsPage() {
                     <tr key={app.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{app.organizationName}</td>
                       <td className="py-3 pr-4">
-                        <Badge variant={STATUS_VARIANT[app.status]}>
+                        <Badge variant={CREDIT_STATUS_VARIANT[app.status]}>
                           {app.status.replace(/_/g, ' ')}
                         </Badge>
                       </td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(app.creditLimit)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(app.creditLimit)}</td>
                       <td className="py-3 pr-4">{formatDate(app.applicationDate)}</td>
                     </tr>
                   ))}

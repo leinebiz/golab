@@ -1,25 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatZAR } from '@/lib/finance/format';
+import { CREDIT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 
 type CreditStatus = 'NOT_APPLIED' | 'PENDING_REVIEW' | 'APPROVED' | 'DECLINED' | 'SUSPENDED';
-
-const STATUS_VARIANT: Record<
-  CreditStatus,
-  'default' | 'success' | 'warning' | 'destructive' | 'secondary'
-> = {
-  NOT_APPLIED: 'secondary',
-  PENDING_REVIEW: 'warning',
-  APPROVED: 'success',
-  DECLINED: 'destructive',
-  SUSPENDED: 'destructive',
-};
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(value);
-}
 
 const PLACEHOLDER_ACCOUNTS: {
   id: string;
@@ -70,16 +54,16 @@ export default function AccountsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 pr-4">
-                        <Badge variant={STATUS_VARIANT[account.creditStatus]}>
+                        <Badge variant={CREDIT_STATUS_VARIANT[account.creditStatus]}>
                           {account.creditStatus.replace(/_/g, ' ')}
                         </Badge>
                       </td>
-                      <td className="py-3 pr-4 font-mono">{formatCurrency(account.creditLimit)}</td>
+                      <td className="py-3 pr-4 font-mono">{formatZAR(account.creditLimit)}</td>
                       <td className="py-3 pr-4 font-mono text-green-600">
-                        {formatCurrency(account.availableCredit)}
+                        {formatZAR(account.availableCredit)}
                       </td>
                       <td className="py-3 font-mono text-orange-600">
-                        {formatCurrency(account.outstandingBalance)}
+                        {formatZAR(account.outstandingBalance)}
                       </td>
                     </tr>
                   ))}
