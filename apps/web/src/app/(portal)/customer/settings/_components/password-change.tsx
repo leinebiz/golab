@@ -60,10 +60,10 @@ export function PasswordChange({ userId }: PasswordChangeProps) {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/v1/users/${userId}/password`, {
+      const res = await fetch(`/api/v1/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ _action: 'changePassword', ...data }),
       });
 
       if (!res.ok) {
