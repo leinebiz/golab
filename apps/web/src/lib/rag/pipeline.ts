@@ -64,7 +64,7 @@ async function assembleContext(orgContext: OrgContext, chunks: RelevantChunk[]):
     take: 5,
     select: {
       id: true,
-      referenceNumber: true,
+      reference: true,
       status: true,
       createdAt: true,
     },
@@ -74,7 +74,7 @@ async function assembleContext(orgContext: OrgContext, chunks: RelevantChunk[]):
     parts.push('Recent testing requests for this organization:');
     for (const req of recentRequests) {
       parts.push(
-        `- ${req.referenceNumber}: status ${req.status} (created ${req.createdAt.toISOString().split('T')[0]})`,
+        `- ${req.reference}: status ${req.status} (created ${req.createdAt.toISOString().split('T')[0]})`,
       );
     }
     parts.push('');

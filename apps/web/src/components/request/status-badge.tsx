@@ -3,15 +3,22 @@
 import { Badge } from '@/components/ui/badge';
 import { REQUEST_STATUS_LABELS, SUB_REQUEST_STATUS_LABELS, STATUS_COLORS } from '@golab/shared';
 
-type ColorVariant = 'gray' | 'blue' | 'green' | 'yellow' | 'orange' | 'red';
+type BadgeVariant =
+  | 'default'
+  | 'secondary'
+  | 'destructive'
+  | 'success'
+  | 'warning'
+  | 'gray'
+  | 'outline';
 
-const COLOR_TO_VARIANT: Record<string, ColorVariant> = {
+const COLOR_TO_VARIANT: Record<string, BadgeVariant> = {
   gray: 'gray',
-  blue: 'blue',
-  green: 'green',
-  yellow: 'yellow',
-  orange: 'orange',
-  red: 'red',
+  blue: 'default',
+  green: 'success',
+  yellow: 'warning',
+  orange: 'warning',
+  red: 'destructive',
 };
 
 interface StatusBadgeProps {
