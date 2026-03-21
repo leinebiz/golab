@@ -4,3 +4,5 @@ export * from './constants/navigation';
 export * from './schemas/request';
 export * from './schemas/auth';
 export * from './schemas/organization';
+export * from './schemas/test-catalogue';
+export * from './schemas/laboratory';
