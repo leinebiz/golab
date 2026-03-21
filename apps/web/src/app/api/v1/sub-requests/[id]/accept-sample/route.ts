@@ -25,7 +25,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     const now = new Date();
 
-    const updated = await prisma.$transaction(async (tx: typeof prisma) => {
+    const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.subRequest.update({
         where: { id },
         data: {

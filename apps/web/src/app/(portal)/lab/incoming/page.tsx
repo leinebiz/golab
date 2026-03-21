@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AcceptSampleButton } from './accept-sample-button';
 
+export const dynamic = 'force-dynamic';
+
 interface IncomingSample {
   id: string;
   subReference: string;

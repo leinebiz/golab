@@ -66,7 +66,7 @@ export async function executeTransition(params: TransitionParams): Promise<void>
   }
 
   // Perform the transition in a transaction
-  await prisma.$transaction(async (tx: typeof prisma) => {
+  await prisma.$transaction(async (tx) => {
     // Update status
     if (entityType === 'Request') {
       await tx.request.update({

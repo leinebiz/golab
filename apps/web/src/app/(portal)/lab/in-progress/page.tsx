@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { SUB_REQUEST_STATUS_LABELS } from '@golab/shared';
 import { InProgressActions } from './in-progress-actions';
 
+export const dynamic = 'force-dynamic';
+
 const STATUS_BADGE_VARIANT: Record<string, 'default' | 'warning' | 'success'> = {
   SAMPLE_ACCEPTED_BY_LAB: 'default',
   TESTING_SCHEDULED: 'default',

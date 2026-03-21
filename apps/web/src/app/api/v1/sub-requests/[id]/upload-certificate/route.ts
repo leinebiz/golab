@@ -48,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // For now, generate a placeholder key.
     const fileKey = `certificates/${subRequest.subReference}/${Date.now()}-${file.name}`;
 
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       const existingCount = await tx.certificate.count({
         where: { subRequestId: id },
       });

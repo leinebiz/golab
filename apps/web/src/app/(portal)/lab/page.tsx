@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SUB_REQUEST_STATUS_LABELS } from '@golab/shared';
 
+export const dynamic = 'force-dynamic';
+
 async function getLabKpis() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

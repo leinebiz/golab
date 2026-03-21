@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CertificateUploadForm } from './certificate-upload-form';
 
+export const dynamic = 'force-dynamic';
+
 async function getUploadableSubRequests() {
   return prisma.subRequest.findMany({
     where: {

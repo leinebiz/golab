@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       const issue = await tx.sampleIssue.create({
         data: {
           subRequestId: id,

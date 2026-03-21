@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LogIssueForm } from './log-issue-form';
 
+export const dynamic = 'force-dynamic';
+
 async function getLabSubRequests() {
   return prisma.subRequest.findMany({
     where: {

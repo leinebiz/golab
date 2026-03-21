@@ -59,7 +59,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       updateData.status = newStatus;
     }
 
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.subRequest.update({
         where: { id },
         data: updateData,
