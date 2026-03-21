@@ -6,6 +6,8 @@ export {
   createEmailWorker,
   createWhatsAppWorker,
 } from './queues';
+export { sendNotificationEmail } from './email-sender';
+export { getEmailTemplate } from './templates';
 export type {
   NotificationEventType,
   NotificationContext,

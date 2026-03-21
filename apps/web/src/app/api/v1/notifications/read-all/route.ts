@@ -6,7 +6,9 @@ import { prisma } from '@golab/database';
  *
  * Mark all portal notifications as read for the authenticated user.
  */
-export async function PUT(request: NextRequest) {
+export { PATCH as PUT };
+
+export async function PATCH(request: NextRequest) {
   const userId = request.headers.get('x-user-id');
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

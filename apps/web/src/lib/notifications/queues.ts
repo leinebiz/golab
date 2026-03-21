@@ -3,6 +3,7 @@ import { prisma } from '@golab/database';
 import { redisConnectionOptions } from './redis';
 import type { NotificationChannel, NotificationJobPayload } from './types';
 import { sendWhatsAppMessage } from '../integrations/whatsapp/twilio-provider';
+import { sendNotificationEmail } from './email-sender';
 
 // ---------------------------------------------------------------------------
 // Queue defaults
@@ -104,11 +105,25 @@ export function createEmailWorker(): Worker<NotificationJobPayload, unknown, str
     'notification:email',
     async (job) => {
       try {
-        // TODO: integrate with actual email provider (Resend, SES, etc.)
-        // For now, log and mark sent
-        console.log(`[email] Sending to user ${job.data.userId}: ${job.data.title}`);
-        await markSent(job.data.notificationId);
-        await markDelivered(job.data.notificationId);
+        const user = await prisma.user.findUniqueOrThrow({
+          where: { id: job.data.userId },
+          select: { email: true, name: true },
+        });
+        const result = await sendNotificationEmail({
+          to: user.email,
+          recipientName: user.name,
+          subject: job.data.title,
+          body: job.data.body,
+          eventType: job.data.eventType,
+          data: job.data.data,
+        });
+        if (result.success) {
+          await markSent(job.data.notificationId);
+          await markDelivered(job.data.notificationId);
+        } else {
+          await markFailed(job.data.notificationId, result.error ?? 'Email send failed');
+          throw new Error(result.error ?? 'Email send failed');
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown email error';
         await markFailed(job.data.notificationId, message);
