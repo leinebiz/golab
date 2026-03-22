@@ -123,8 +123,9 @@ export default async function AdminDashboardPage() {
   }
 
   const role = (session.user as unknown as Record<string, unknown>).role as string;
-  if (role !== 'ADMIN' && role !== 'GOLAB_ADMIN') {
-    redirect('/portal');
+  const adminRoles = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
+  if (!adminRoles.includes(role)) {
+    redirect('/login');
   }
 
   const kpis = await getKpis();
