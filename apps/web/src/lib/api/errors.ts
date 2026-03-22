@@ -20,6 +20,6 @@ export function handleApiError(err: unknown, context: string): NextResponse {
     return NextResponse.json({ error: message }, { status: 409 });
   }
 
-  logger.error({ error: err }, context);
+  logger.error({ error: err instanceof Error ? err.message : 'Unknown error' }, context);
   return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
 }

@@ -91,10 +91,42 @@ export const authConfig: NextAuthConfig = {
 
       if (isOnPortal) {
         if (!isLoggedIn) return false;
+
+        const role = (auth?.user as Record<string, unknown> | undefined)?.role as
+          | string
+          | undefined;
+
+        if (nextUrl.pathname.startsWith('/admin')) {
+          if (!['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'].includes(role ?? ''))
+            return false;
+        }
+        if (nextUrl.pathname.startsWith('/finance')) {
+          if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role ?? '')) return false;
+        }
+        if (nextUrl.pathname.startsWith('/lab')) {
+          if (!['GOLAB_ADMIN', 'LAB_ADMIN', 'LAB_TECHNICIAN'].includes(role ?? '')) return false;
+        }
+        if (nextUrl.pathname.startsWith('/customer')) {
+          if (!['CUSTOMER_ADMIN', 'CUSTOMER_USER'].includes(role ?? '')) return false;
+        }
+
         return true;
       }
 
       if (isLoggedIn && isOnAuth) {
+        const role = (auth?.user as Record<string, unknown> | undefined)?.role as
+          | string
+          | undefined;
+
+        if (['GOLAB_ADMIN', 'GOLAB_REVIEWER'].includes(role ?? '')) {
+          return Response.redirect(new URL('/admin', nextUrl));
+        }
+        if (['GOLAB_FINANCE'].includes(role ?? '')) {
+          return Response.redirect(new URL('/finance', nextUrl));
+        }
+        if (['LAB_ADMIN', 'LAB_TECHNICIAN'].includes(role ?? '')) {
+          return Response.redirect(new URL('/lab', nextUrl));
+        }
         return Response.redirect(new URL('/customer', nextUrl));
       }
 

@@ -66,8 +66,8 @@ export default async function AdminRequestsPage({
 
   const params = await searchParams;
   const tab = (typeof params.tab === 'string' ? params.tab : 'all') as string;
-  const search = typeof params.search === 'string' ? params.search : '';
-  const page = Math.max(1, Number(params.page) || 1);
+  const search = (typeof params.search === 'string' ? params.search : '').slice(0, 200);
+  const page = Math.max(1, Math.min(Number(params.page) || 1, 1000));
 
   const activeTab = STATUS_TABS.find((t) => t.value === tab) ?? STATUS_TABS[0];
 

@@ -3,6 +3,8 @@
  * for testability.
  */
 
+export const MAX_SEARCH_LENGTH = 200;
+
 export interface CertificateFilterParams {
   status: string;
   subRequestId: string | null;
@@ -13,7 +15,9 @@ export interface CertificateFilterParams {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildCertificateWhere(params: CertificateFilterParams): Record<string, any> {
-  const { status, subRequestId, search, userRole, userOrganizationId } = params;
+  const { status, subRequestId, userRole, userOrganizationId } = params;
+  // Truncate search to MAX_SEARCH_LENGTH to prevent abuse
+  const search = params.search ? params.search.slice(0, MAX_SEARCH_LENGTH) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: Record<string, any> = {};

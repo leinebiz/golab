@@ -86,6 +86,7 @@ export default function CertificatesPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function CertificatesPage() {
   const fetchCertificates = useCallback(
     async (page: number, status: string, searchTerm: string) => {
       setLoading(true);
+      setError(null);
       try {
         const params = new URLSearchParams({
           page: String(page),
@@ -111,6 +113,7 @@ export default function CertificatesPage() {
         setPagination(json.pagination);
       } catch (err) {
         console.error('Failed to fetch certificates:', err);
+        setError('Failed to load certificates. Please try again.');
         setData([]);
       } finally {
         setLoading(false);
@@ -249,6 +252,13 @@ export default function CertificatesPage() {
           />
         </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Desktop table */}
       <div className="hidden md:block">

@@ -25,7 +25,7 @@ async function getInvoices() {
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
     organization: inv.request.organization.name,
-    totalAmount: Number(inv.totalAmount),
+    totalAmount: inv.totalAmount.toString(),
     status: inv.status as
       | 'DRAFT'
       | 'ISSUED'

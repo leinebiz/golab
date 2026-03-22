@@ -93,6 +93,7 @@ export function UsersContent({ organizationId }: UsersContentProps) {
       }
     } catch (error: unknown) {
       console.error('Failed to load users:', error);
+      alert('Failed to load users. Please refresh the page.');
     } finally {
       setLoading(false);
     }

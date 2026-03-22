@@ -19,28 +19,36 @@ import { redirect } from 'next/navigation';
 
 async function getKpis() {
   const [activeRequests, pendingReviews, pendingCreditApps, activeLabs] = await Promise.all([
-    prisma.request.count({
-      where: {
-        status: {
-          notIn: ['CLOSED', 'CANCELLED'],
+    prisma.request
+      .count({
+        where: {
+          status: {
+            notIn: ['CLOSED', 'CANCELLED'],
+          },
         },
-      },
-    }),
-    prisma.subRequest.count({
-      where: {
-        status: 'AWAITING_GOLAB_REVIEW',
-      },
-    }),
-    prisma.creditAccount.count({
-      where: {
-        status: 'PENDING_REVIEW',
-      },
-    }),
-    prisma.laboratory.count({
-      where: {
-        isActive: true,
-      },
-    }),
+      })
+      .catch(() => 0),
+    prisma.subRequest
+      .count({
+        where: {
+          status: 'AWAITING_GOLAB_REVIEW',
+        },
+      })
+      .catch(() => 0),
+    prisma.creditAccount
+      .count({
+        where: {
+          status: 'PENDING_REVIEW',
+        },
+      })
+      .catch(() => 0),
+    prisma.laboratory
+      .count({
+        where: {
+          isActive: true,
+        },
+      })
+      .catch(() => 0),
   ]);
 
   return { activeRequests, pendingReviews, pendingCreditApps, activeLabs };

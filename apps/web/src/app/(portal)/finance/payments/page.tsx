@@ -30,7 +30,7 @@ async function getPayments() {
     id: p.id,
     invoiceNumber: p.invoice.invoiceNumber,
     organization: p.invoice.request.organization.name,
-    amount: Number(p.amount),
+    amount: p.amount.toString(),
     currency: p.currency,
     status: p.status as 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED',
     provider: p.provider,

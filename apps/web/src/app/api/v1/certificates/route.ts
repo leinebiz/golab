@@ -3,6 +3,12 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/auth/middleware';
 import { auth } from '@/lib/auth/config';
 import { handleApiError } from '@/lib/api/errors';
+import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
+import { buildCertificateWhere } from './where-builder';
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+const MAX_SEARCH_LENGTH = 200;
 
 /**
  * GET /api/v1/certificates
@@ -20,53 +26,29 @@ export async function GET(request: NextRequest) {
 
     const status = searchParams.get('status') ?? 'pending';
     const subRequestId = searchParams.get('subRequestId');
-    const search = searchParams.get('search')?.trim();
+    const rawSearch = searchParams.get('search')?.trim();
+    const search = rawSearch ? rawSearch.slice(0, MAX_SEARCH_LENGTH) : undefined;
     const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
     const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize') ?? '25')));
 
-    // Build where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: Record<string, any> = {};
-
-    if (subRequestId) {
-      where.subRequestId = subRequestId;
+    // Validate subRequestId format when provided
+    if (subRequestId && !UUID_RE.test(subRequestId)) {
+      return NextResponse.json({ error: 'Invalid subRequestId format' }, { status: 400 });
     }
 
-    // Map human-readable status filter to DB state
-    if (status === 'pending') {
-      where.reviewAction = null;
-    } else if (status === 'approved') {
-      where.reviewAction = 'APPROVED';
-    } else if (status === 'returned') {
-      where.reviewAction = 'RETURNED_TO_LAB';
-    } else if (status === 'on_hold') {
-      where.reviewAction = 'ON_HOLD';
-    }
-    // "all" -> no additional filter
-
-    // Org-scope: customer roles can only see their own org's certificates
+    // Org-scope: resolve current user for role-based filtering
     const session = await auth();
-    const user = session!.user as { role: string; organizationId: string };
-    if (['CUSTOMER_ADMIN', 'CUSTOMER_USER'].includes(user.role)) {
-      where.subRequest = {
-        ...where.subRequest,
-        request: {
-          ...(where.subRequest?.request ?? {}),
-          organizationId: user.organizationId,
-        },
-      };
-    }
+    const user = session!.user as { id: string; role: string; organizationId: string };
+    const requestId = crypto.randomUUID();
+    const reqLogger = createRequestLogger(requestId, user.id);
 
-    // Search by request reference
-    if (search) {
-      where.subRequest = {
-        ...where.subRequest,
-        request: {
-          ...(where.subRequest?.request ?? {}),
-          reference: { contains: search, mode: 'insensitive' },
-        },
-      };
-    }
+    const where = buildCertificateWhere({
+      status,
+      subRequestId,
+      search,
+      userRole: user.role,
+      userOrganizationId: user.organizationId,
+    });
 
     const [certificates, total] = await Promise.all([
       prisma.certificate.findMany({
@@ -90,6 +72,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.certificate.count({ where }),
     ]);
+
+    reqLogger.info({ total, page, pageSize }, 'certificates.list.completed');
 
     return NextResponse.json({
       data: certificates,

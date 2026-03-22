@@ -1,9 +1,13 @@
 /**
- * Format a numeric value as South African Rand.
- * Accepts string (from Decimal fields) or number.
+ * Format a value as South African Rand for display.
+ *
+ * Accepts string (from Prisma Decimal fields) or number.
+ * This is display-only — no arithmetic is performed on the value.
+ * Prisma Decimal values should be passed as strings (via .toString())
+ * to preserve precision through to the display layer.
  */
 export function formatZAR(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
+  const num = Number(value);
   return new Intl.NumberFormat('en-ZA', {
     style: 'currency',
     currency: 'ZAR',

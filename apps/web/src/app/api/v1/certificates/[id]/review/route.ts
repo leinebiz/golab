@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/auth/middleware';
 import { executeTransition } from '@/lib/workflow/engine';
 import { handleApiError } from '@/lib/api/errors';
-import { logger } from '@/lib/observability/logger';
+import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 import { ReviewCertificateSchema } from '@golab/shared';
 
 /** Map review actions to sub-request target statuses */
@@ -24,6 +25,7 @@ const ACTION_TO_STATUS: Record<string, string> = {
  * APPROVED_FOR_RELEASE, then a system transition releases to customer.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const requestId = crypto.randomUUID();
   try {
     const session = await requirePermission('certificates', 'review');
     const { id } = await params;
@@ -32,14 +34,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const userId = (session.user as any).id as string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const role = (session.user as any).role as string;
+    const reqLogger = createRequestLogger(requestId, userId);
 
     const body = await request.json();
     const parsed = ReviewCertificateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: parsed.error.format() },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
 
     const { action, notes } = parsed.data;
@@ -62,9 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (certificate.subRequest.status !== 'AWAITING_GOLAB_REVIEW') {
       return NextResponse.json(
-        {
-          error: `Sub-request is not awaiting review (current: ${certificate.subRequest.status})`,
-        },
+        { error: 'Certificate is not in a reviewable state' },
         { status: 409 },
       );
     }
@@ -117,14 +115,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         });
       } catch (releaseErr) {
         // Log but don't fail the review -- release can be retried
-        logger.error(
-          { certificateId: id, error: releaseErr },
+        reqLogger.error(
+          {
+            certificateId: id,
+            error: releaseErr instanceof Error ? releaseErr.message : 'Unknown error',
+          },
           'certificates.review.release_failed',
         );
       }
     }
 
-    logger.info({ certificateId: id, action, reviewedBy: userId }, 'certificates.reviewed');
+    metrics.certificateReviewed({ action });
+    metrics.reviewDequeued({ entity: 'certificate' });
+    reqLogger.info({ certificateId: id, action }, 'certificates.reviewed');
 
     return NextResponse.json({ data: { id, action, status: targetStatus } });
   } catch (err) {

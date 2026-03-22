@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/middleware';
 import { DefaultToleranceSchema } from '@golab/shared';
+
+const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -8,7 +11,13 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const session = await requireAuth();
+    const user = session.user as { id: string; role: string; organizationId: string };
     const { id } = await context.params;
+
+    if (!ADMIN_ROLES.includes(user.role) && user.organizationId !== id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const tolerances = await prisma.defaultTolerance.findMany({
       where: { organizationId: id },
@@ -29,6 +38,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(tolerances);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to fetch tolerances:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -44,7 +56,13 @@ interface TolerancePayload {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const session = await requireAuth();
+    const user = session.user as { id: string; role: string; organizationId: string };
     const { id } = await context.params;
+
+    if (!ADMIN_ROLES.includes(user.role) && user.organizationId !== id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const body = await request.json();
 
     if (!Array.isArray(body.tolerances)) {
@@ -98,6 +116,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(tolerances);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to update tolerances:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

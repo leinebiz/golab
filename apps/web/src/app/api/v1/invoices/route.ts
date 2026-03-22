@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@golab/database';
-import { logger } from '@/lib/observability/logger';
+import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 import { auth } from '@/lib/auth/config';
 
 export async function GET(request: NextRequest) {
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
     role: string;
     organizationId: string;
   };
+  const requestId = crypto.randomUUID();
+  const reqLogger = createRequestLogger(requestId, user.id);
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10));
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
     ...(status ? { status: status as 'DRAFT' | 'ISSUED' | 'PAID' } : {}),
   };
 
+  const start = performance.now();
   try {
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
@@ -58,6 +62,7 @@ export async function GET(request: NextRequest) {
       prisma.invoice.count({ where }),
     ]);
 
+    metrics.recordApiRequest(performance.now() - start, { route: 'invoices.list' });
     return NextResponse.json({
       data: invoices,
       pagination: {
@@ -68,7 +73,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
-    logger.error({ error: err }, 'invoices.list.failed');
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'invoices.list',
+      status: 'error',
+    });
+    reqLogger.error(
+      { error: err instanceof Error ? err.message : 'Unknown error' },
+      'invoices.list.failed',
+    );
     return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 });
   }
 }
@@ -84,6 +96,8 @@ export async function POST(request: NextRequest) {
     role: string;
     organizationId: string;
   };
+  const postRequestId = crypto.randomUUID();
+  const postLogger = createRequestLogger(postRequestId, user.id);
   const isFinanceOrAdmin = ['GOLAB_ADMIN', 'GOLAB_FINANCE', 'SYSTEM'].includes(user.role);
   if (!isFinanceOrAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -169,11 +183,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    logger.info({ invoiceId: invoice.id, invoiceNumber, requestId: req.id }, 'invoice.created');
+    postLogger.info(
+      { invoiceId: invoice.id, invoiceNumber, testingRequestId: req.id },
+      'invoice.created',
+    );
 
     return NextResponse.json({ data: invoice }, { status: 201 });
   } catch (err) {
-    logger.error({ error: err, requestId: body.requestId }, 'invoice.create.failed');
+    postLogger.error(
+      {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        testingRequestId: body.requestId,
+      },
+      'invoice.create.failed',
+    );
     return NextResponse.json({ error: 'Failed to generate invoice' }, { status: 500 });
   }
 }

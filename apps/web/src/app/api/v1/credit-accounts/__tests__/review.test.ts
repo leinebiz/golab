@@ -63,37 +63,64 @@ describe('credit review validation', () => {
   });
 
   describe('parseApprovedLimit', () => {
-    it('returns 0 when approvedLimit is undefined', () => {
-      expect(parseApprovedLimit(undefined)).toBe(0);
+    it('returns valid 0 when approvedLimit is undefined', () => {
+      const result = parseApprovedLimit(undefined);
+      expect(result).toEqual({ valid: true, value: 0 });
     });
 
-    it('parses a valid numeric string', () => {
-      expect(parseApprovedLimit('50000')).toBe(50000);
+    it('returns valid 0 when approvedLimit is empty string', () => {
+      const result = parseApprovedLimit('');
+      expect(result).toEqual({ valid: true, value: 0 });
     });
 
-    it('parses "0" as 0', () => {
-      expect(parseApprovedLimit('0')).toBe(0);
+    it('parses a valid integer string', () => {
+      const result = parseApprovedLimit('50000');
+      expect(result).toEqual({ valid: true, value: 50000 });
     });
 
-    it('parses negative values', () => {
-      expect(parseApprovedLimit('-100')).toBe(-100);
+    it('parses "0" as valid 0', () => {
+      const result = parseApprovedLimit('0');
+      expect(result).toEqual({ valid: true, value: 0 });
     });
 
-    it('parses decimal values', () => {
-      expect(parseApprovedLimit('12345.67')).toBeCloseTo(12345.67);
+    it('rejects negative values', () => {
+      const result = parseApprovedLimit('-100');
+      expect(result.valid).toBe(false);
     });
 
-    it('returns NaN for non-numeric strings', () => {
-      expect(parseApprovedLimit('abc')).toBeNaN();
+    it('parses decimal values with up to 2 places', () => {
+      const result = parseApprovedLimit('12345.67');
+      expect(result).toEqual({ valid: true, value: 12345.67 });
     });
 
-    it('parses leading numeric portion of mixed strings', () => {
-      // parseFloat('123abc') returns 123 — this is JS behavior
-      expect(parseApprovedLimit('123abc')).toBe(123);
+    it('rejects values with more than 2 decimal places', () => {
+      const result = parseApprovedLimit('12345.678');
+      expect(result.valid).toBe(false);
     });
 
-    it('returns NaN for empty string', () => {
-      expect(parseApprovedLimit('')).toBeNaN();
+    it('rejects non-numeric strings', () => {
+      const result = parseApprovedLimit('abc');
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects mixed alpha-numeric strings', () => {
+      const result = parseApprovedLimit('123abc');
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects values exceeding maximum', () => {
+      const result = parseApprovedLimit('99999999999.99');
+      expect(result.valid).toBe(false);
+    });
+
+    it('accepts value at maximum boundary', () => {
+      const result = parseApprovedLimit('9999999999.99');
+      expect(result).toEqual({ valid: true, value: 9999999999.99 });
+    });
+
+    it('parses single decimal place', () => {
+      const result = parseApprovedLimit('100.5');
+      expect(result).toEqual({ valid: true, value: 100.5 });
     });
   });
 });

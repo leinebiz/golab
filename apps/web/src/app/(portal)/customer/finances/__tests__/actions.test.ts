@@ -126,7 +126,7 @@ describe('submitCreditApplication validation', () => {
     );
     expect(result).toEqual({
       success: false,
-      error: 'Requested credit limit must be a positive number',
+      error: 'Credit limit must be a positive number with at most 2 decimal places',
     });
   });
 
@@ -136,7 +136,7 @@ describe('submitCreditApplication validation', () => {
     );
     expect(result).toEqual({
       success: false,
-      error: 'Requested credit limit must be a positive number',
+      error: 'Requested credit limit must be a positive number within allowed range',
     });
   });
 
@@ -146,7 +146,7 @@ describe('submitCreditApplication validation', () => {
     );
     expect(result).toEqual({
       success: false,
-      error: 'Requested credit limit must be a positive number',
+      error: 'Credit limit must be a positive number with at most 2 decimal places',
     });
   });
 });
