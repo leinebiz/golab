@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatZAR } from '@/lib/finance/format';
 import { PAYMENT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +65,15 @@ async function getFinanceSummary() {
 }
 
 export default async function FinanceDashboardPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role)) {
+    redirect('/login');
+  }
+
   const { summary, recentPayments } = await getFinanceSummary();
 
   return (

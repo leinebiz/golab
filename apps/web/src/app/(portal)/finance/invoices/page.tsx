@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatZAR, formatDate } from '@/lib/finance/format';
 import { INVOICE_STATUS_VARIANT } from '@/lib/finance/status-variants';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +40,15 @@ async function getInvoices() {
 }
 
 export default async function InvoicesPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role)) {
+    redirect('/login');
+  }
+
   const invoices = await getInvoices();
 
   return (
@@ -89,6 +100,9 @@ export default async function InvoicesPage() {
           )}
         </CardContent>
       </Card>
+      {invoices.length >= 100 && (
+        <p className="text-sm text-gray-500 mt-2">Showing first 100 records.</p>
+      )}
     </div>
   );
 }

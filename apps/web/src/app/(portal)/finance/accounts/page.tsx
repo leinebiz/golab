@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatZAR } from '@/lib/finance/format';
 import { CREDIT_STATUS_VARIANT } from '@/lib/finance/status-variants';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +41,15 @@ async function getAccounts() {
 }
 
 export default async function AccountsPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role)) {
+    redirect('/login');
+  }
+
   const accounts = await getAccounts();
 
   return (
