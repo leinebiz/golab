@@ -7,8 +7,9 @@ import { handleApiError } from '@/lib/api/errors';
  * GET /api/v1/certificates
  *
  * List certificates, optionally filtered by:
- *   - status: "pending" (AWAITING_GOLAB_REVIEW) | "approved" | "returned" | "all"
+ *   - status: "pending" (AWAITING_GOLAB_REVIEW) | "approved" | "returned" | "on_hold" | "all"
  *   - subRequestId: filter to a specific sub-request
+ *   - search: filter by request reference (case-insensitive contains)
  *   - page / pageSize: pagination
  */
 export async function GET(request: NextRequest) {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     const status = searchParams.get('status') ?? 'pending';
     const subRequestId = searchParams.get('subRequestId');
+    const search = searchParams.get('search')?.trim();
     const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
     const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize') ?? '25')));
 
@@ -31,14 +33,23 @@ export async function GET(request: NextRequest) {
 
     // Map human-readable status filter to DB state
     if (status === 'pending') {
-      where.subRequest = { status: 'AWAITING_GOLAB_REVIEW' };
       where.reviewAction = null;
     } else if (status === 'approved') {
       where.reviewAction = 'APPROVED';
     } else if (status === 'returned') {
       where.reviewAction = 'RETURNED_TO_LAB';
+    } else if (status === 'on_hold') {
+      where.reviewAction = 'ON_HOLD';
     }
     // "all" -> no additional filter
+
+    // Search by request reference
+    if (search) {
+      where.subRequest = {
+        ...where.subRequest,
+        request: { reference: { contains: search, mode: 'insensitive' } },
+      };
+    }
 
     const [certificates, total] = await Promise.all([
       prisma.certificate.findMany({
