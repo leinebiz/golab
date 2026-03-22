@@ -4,6 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/auth/middleware';
 import { handleApiError } from '@/lib/api/errors';
+import { logger } from '@/lib/observability/logger';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION ?? 'af-south-1',
@@ -54,6 +55,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const signedUrl = await getSignedUrl(s3Client, command, {
       expiresIn: SIGNED_URL_EXPIRES_SECONDS,
     });
+
+    logger.info({ certificateId: id }, 'certificate.download.requested');
 
     return NextResponse.json({
       data: {

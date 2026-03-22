@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth/config';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/observability/logger';
 
 interface CreditApplicationResult {
   success: boolean;
@@ -48,10 +49,18 @@ export async function submitCreditApplication(
   });
 
   if (existing && existing.status === 'PENDING_REVIEW') {
+    logger.warn(
+      { organizationId: user.organizationId, reason: 'duplicate_pending' },
+      'credit.application.rejected',
+    );
     return { success: false, error: 'You already have a pending credit application' };
   }
 
   if (existing && existing.status === 'APPROVED') {
+    logger.warn(
+      { organizationId: user.organizationId, reason: 'already_approved' },
+      'credit.application.rejected',
+    );
     return { success: false, error: 'You already have an approved credit account' };
   }
 
@@ -81,5 +90,9 @@ export async function submitCreditApplication(
 
   revalidatePath('/customer/finances');
 
+  logger.info(
+    { organizationId: user.organizationId, userId: user.id },
+    'credit.application.submitted',
+  );
   return { success: true };
 }
