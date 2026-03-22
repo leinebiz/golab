@@ -91,8 +91,8 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
         const tolerancesData = await tolerancesRes.json();
         setTolerances(Array.isArray(tolerancesData) ? tolerancesData : (tolerancesData.data ?? []));
       }
-    } catch {
-      // Fetch error
+    } catch (error: unknown) {
+      console.error('Failed to load tolerances:', error);
     } finally {
       setLoading(false);
     }
@@ -154,8 +154,8 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
         setTolerances((prev) => [saved, ...prev]);
       }
       setDialogOpen(false);
-    } catch {
-      // Error handling — in production show toast notification
+    } catch (error: unknown) {
+      console.error('Failed to save tolerance:', error);
     } finally {
       setSaving(false);
     }
@@ -170,8 +170,8 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
       });
       if (!res.ok) throw new Error('Failed to delete tolerance');
       setTolerances((prev) => prev.filter((t) => t.id !== id));
-    } catch {
-      // Error handling
+    } catch (error: unknown) {
+      console.error('Failed to delete tolerance:', error);
     }
   };
 

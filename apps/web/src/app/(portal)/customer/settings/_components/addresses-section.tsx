@@ -90,8 +90,8 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
           const data = await res.json();
           setAddresses(data);
         }
-      } catch {
-        // Fetch error
+      } catch (error: unknown) {
+        console.error('Failed to load addresses:', error);
       } finally {
         setLoading(false);
       }
@@ -151,8 +151,8 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
         setAddresses((prev) => [saved, ...prev]);
       }
       setDialogOpen(false);
-    } catch {
-      // Error handling - in production show toast notification
+    } catch (error: unknown) {
+      console.error('Failed to save address:', error);
     } finally {
       setSaving(false);
     }
@@ -167,8 +167,8 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
       });
       if (!res.ok) throw new Error('Failed to delete');
       setAddresses((prev) => prev.filter((a) => a.id !== addressId));
-    } catch {
-      // Error handling
+    } catch (error: unknown) {
+      console.error('Failed to delete address:', error);
     }
   };
 
@@ -188,8 +188,8 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
           return a;
         }),
       );
-    } catch {
-      // Error handling
+    } catch (error: unknown) {
+      console.error('Failed to set default address:', error);
     }
   };
 

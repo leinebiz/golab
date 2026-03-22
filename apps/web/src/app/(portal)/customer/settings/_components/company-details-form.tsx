@@ -53,8 +53,8 @@ export function CompanyDetailsForm({ organizationId }: CompanyDetailsFormProps) 
             industry: data.industry ?? '',
           });
         }
-      } catch {
-        // Fetch error — form remains empty
+      } catch (error: unknown) {
+        console.error('Failed to load company details:', error);
       } finally {
         setLoading(false);
       }

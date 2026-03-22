@@ -45,8 +45,8 @@ export function CommunicationPreferences({ organizationId }: CommunicationPrefer
             setChannel(data.preferredCommChannel);
           }
         }
-      } catch {
-        // Fetch error — default remains
+      } catch (error: unknown) {
+        console.error('Failed to load preferences:', error);
       } finally {
         setLoading(false);
       }

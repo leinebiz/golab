@@ -91,8 +91,8 @@ export function UsersContent({ organizationId }: UsersContentProps) {
         const data = await res.json();
         setUsers(data);
       }
-    } catch {
-      // Fetch error
+    } catch (error: unknown) {
+      console.error('Failed to load users:', error);
     } finally {
       setLoading(false);
     }
@@ -134,8 +134,9 @@ export function UsersContent({ organizationId }: UsersContentProps) {
       const res = await fetch(`/api/v1/users/${userId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to deactivate');
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isActive: false } : u)));
-    } catch {
-      // Error handling
+    } catch (error: unknown) {
+      console.error('Failed to deactivate user:', error);
+      alert('Failed to deactivate user. Please try again.');
     }
   };
 
@@ -148,8 +149,9 @@ export function UsersContent({ organizationId }: UsersContentProps) {
       });
       if (!res.ok) throw new Error('Failed to reactivate');
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isActive: true } : u)));
-    } catch {
-      // Error handling
+    } catch (error: unknown) {
+      console.error('Failed to reactivate user:', error);
+      alert('Failed to reactivate user. Please try again.');
     }
   };
 
