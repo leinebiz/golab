@@ -58,6 +58,12 @@ export default async function AdminRequestsPage({
     redirect('/login');
   }
 
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  const adminRoles = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
+  if (!adminRoles.includes(role)) {
+    redirect('/login');
+  }
+
   const params = await searchParams;
   const tab = (typeof params.tab === 'string' ? params.tab : 'all') as string;
   const search = typeof params.search === 'string' ? params.search : '';
@@ -125,7 +131,9 @@ export default async function AdminRequestsPage({
     });
   }
 
-  function uniqueLabs(subRequests: Array<{ laboratory: { id: string; name: string; code: string } }>) {
+  function uniqueLabs(
+    subRequests: Array<{ laboratory: { id: string; name: string; code: string } }>,
+  ) {
     const seen = new Map<string, string>();
     for (const sr of subRequests) {
       if (!seen.has(sr.laboratory.id)) {
@@ -205,9 +213,7 @@ export default async function AdminRequestsPage({
                         </TableCell>
                         <TableCell>
                           {labs.length > 0 ? (
-                            <span className="text-sm text-gray-600">
-                              {labs.join(', ')}
-                            </span>
+                            <span className="text-sm text-gray-600">{labs.join(', ')}</span>
                           ) : (
                             <span className="text-sm text-gray-400">--</span>
                           )}
@@ -245,8 +251,7 @@ export default async function AdminRequestsPage({
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-sm text-gray-600">
                       <div>
-                        <span className="font-medium">Customer:</span>{' '}
-                        {request.organization.name}
+                        <span className="font-medium">Customer:</span> {request.organization.name}
                       </div>
                       <div>
                         <span className="font-medium">Lab(s):</span>{' '}
@@ -273,8 +278,8 @@ export default async function AdminRequestsPage({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-            {Math.min(page * PAGE_SIZE, total)} of {total} requests
+            Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total}{' '}
+            requests
           </p>
           <div className="flex gap-2">
             {page > 1 ? (
