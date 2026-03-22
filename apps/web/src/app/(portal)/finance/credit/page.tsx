@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,14 +22,30 @@ interface CreditApplication {
   reason: string;
 }
 
-const PLACEHOLDER_APPLICATIONS: CreditApplication[] = [];
-
 export default function CreditApplicationsPage() {
-  const [applications] = useState<CreditApplication[]>(PLACEHOLDER_APPLICATIONS);
+  const [applications, setApplications] = useState<CreditApplication[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<CreditApplication | null>(null);
   const [reviewAction, setReviewAction] = useState<'approve' | 'decline' | null>(null);
   const [approvedLimit, setApprovedLimit] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchApplications();
+  }, []);
+
+  async function fetchApplications() {
+    try {
+      const res = await fetch('/api/v1/credit-accounts');
+      if (res.ok) {
+        const data = await res.json();
+        setApplications(data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const pendingApplications = applications.filter((a) => a.status === 'PENDING_REVIEW');
   const reviewedApplications = applications.filter((a) => a.status !== 'PENDING_REVIEW');
@@ -43,10 +59,38 @@ export default function CreditApplicationsPage() {
 
   async function submitReview() {
     if (!selectedApp || !reviewAction) return;
-    setSelectedApp(null);
-    setReviewAction(null);
-    setApprovedLimit('');
-    setReviewNotes('');
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/v1/credit-accounts/${selectedApp.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: reviewAction,
+          approvedLimit: reviewAction === 'approve' ? approvedLimit : undefined,
+          notes: reviewNotes || undefined,
+        }),
+      });
+      if (res.ok) {
+        await fetchApplications();
+      }
+    } finally {
+      setSubmitting(false);
+      setSelectedApp(null);
+      setReviewAction(null);
+      setApprovedLimit('');
+      setReviewNotes('');
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Credit Applications</h1>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -111,7 +155,7 @@ export default function CreditApplicationsPage() {
               </div>
               <div className="md:col-span-2">
                 <p className="text-sm text-gray-500">Reason</p>
-                <p>{selectedApp.reason}</p>
+                <p>{selectedApp.reason || 'No reason provided.'}</p>
               </div>
             </div>
 
@@ -165,8 +209,12 @@ export default function CreditApplicationsPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={submitReview} className="bg-green-600 hover:bg-green-700">
-                    Confirm Approval
+                  <Button
+                    onClick={submitReview}
+                    disabled={submitting}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {submitting ? 'Submitting...' : 'Confirm Approval'}
                   </Button>
                   <Button variant="outline" onClick={() => setReviewAction(null)}>
                     Back
@@ -194,8 +242,8 @@ export default function CreditApplicationsPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="destructive" onClick={submitReview}>
-                    Confirm Decline
+                  <Button variant="destructive" onClick={submitReview} disabled={submitting}>
+                    {submitting ? 'Submitting...' : 'Confirm Decline'}
                   </Button>
                   <Button variant="outline" onClick={() => setReviewAction(null)}>
                     Back

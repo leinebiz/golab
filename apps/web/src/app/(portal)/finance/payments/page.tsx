@@ -2,22 +2,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { formatZAR } from '@/lib/finance/format';
 import { PAYMENT_STATUS_VARIANT } from '@/lib/finance/status-variants';
+import { prisma } from '@/lib/db';
 
-type PaymentStatus = 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED';
+export const dynamic = 'force-dynamic';
 
-const PLACEHOLDER_PAYMENTS: {
-  id: string;
-  invoiceNumber: string;
-  organization: string;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  provider: string;
-  confirmedAt: string | null;
-  createdAt: string;
-}[] = [];
+async function getPayments() {
+  const payments = await prisma.payment.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: {
+      invoice: {
+        select: {
+          invoiceNumber: true,
+          request: {
+            select: {
+              organization: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
+  });
 
-export default function PaymentsPage() {
+  return payments.map((p) => ({
+    id: p.id,
+    invoiceNumber: p.invoice.invoiceNumber,
+    organization: p.invoice.request.organization.name,
+    amount: Number(p.amount),
+    currency: p.currency,
+    status: p.status as 'PENDING' | 'PROCESSING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED',
+    provider: p.provider,
+    confirmedAt: p.confirmedAt?.toISOString().split('T')[0] ?? null,
+    createdAt: p.createdAt.toISOString().split('T')[0],
+  }));
+}
+
+export default async function PaymentsPage() {
+  const payments = await getPayments();
+
   return (
     <div className="space-y-6">
       <div>
@@ -31,7 +53,7 @@ export default function PaymentsPage() {
           <CardDescription>Sorted by most recent</CardDescription>
         </CardHeader>
         <CardContent>
-          {PLACEHOLDER_PAYMENTS.length === 0 ? (
+          {payments.length === 0 ? (
             <p className="text-sm text-gray-500">No payments recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -47,7 +69,7 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {PLACEHOLDER_PAYMENTS.map((payment) => (
+                  {payments.map((payment) => (
                     <tr key={payment.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{payment.invoiceNumber}</td>
                       <td className="py-3 pr-4">{payment.organization}</td>

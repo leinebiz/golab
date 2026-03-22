@@ -1,28 +1,45 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatZAR } from '@/lib/finance/format';
+import { formatZAR, formatDate } from '@/lib/finance/format';
 import { INVOICE_STATUS_VARIANT } from '@/lib/finance/status-variants';
+import { prisma } from '@/lib/db';
 
-type InvoiceStatus =
-  | 'DRAFT'
-  | 'ISSUED'
-  | 'PAYMENT_LINK_SENT'
-  | 'PAID'
-  | 'OVERDUE'
-  | 'CANCELLED'
-  | 'CREDITED';
+export const dynamic = 'force-dynamic';
 
-const PLACEHOLDER_INVOICES: {
-  id: string;
-  invoiceNumber: string;
-  organization: string;
-  totalAmount: number;
-  status: InvoiceStatus;
-  dueDate: string;
-  issuedAt: string;
-}[] = [];
+async function getInvoices() {
+  const invoices = await prisma.invoice.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+    include: {
+      request: {
+        select: {
+          organization: { select: { name: true } },
+        },
+      },
+    },
+  });
 
-export default function InvoicesPage() {
+  return invoices.map((inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    organization: inv.request.organization.name,
+    totalAmount: Number(inv.totalAmount),
+    status: inv.status as
+      | 'DRAFT'
+      | 'ISSUED'
+      | 'PAYMENT_LINK_SENT'
+      | 'PAID'
+      | 'OVERDUE'
+      | 'CANCELLED'
+      | 'CREDITED',
+    dueDate: inv.dueDate.toISOString(),
+    issuedAt: inv.issuedAt?.toISOString() ?? inv.createdAt.toISOString(),
+  }));
+}
+
+export default async function InvoicesPage() {
+  const invoices = await getInvoices();
+
   return (
     <div className="space-y-6">
       <div>
@@ -36,7 +53,7 @@ export default function InvoicesPage() {
           <CardDescription>Sorted by most recent</CardDescription>
         </CardHeader>
         <CardContent>
-          {PLACEHOLDER_INVOICES.length === 0 ? (
+          {invoices.length === 0 ? (
             <p className="text-sm text-gray-500">No invoices yet.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -52,7 +69,7 @@ export default function InvoicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {PLACEHOLDER_INVOICES.map((invoice) => (
+                  {invoices.map((invoice) => (
                     <tr key={invoice.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{invoice.invoiceNumber}</td>
                       <td className="py-3 pr-4">{invoice.organization}</td>
@@ -62,8 +79,8 @@ export default function InvoicesPage() {
                           {invoice.status.replace(/_/g, ' ')}
                         </Badge>
                       </td>
-                      <td className="py-3 pr-4">{invoice.issuedAt}</td>
-                      <td className="py-3">{invoice.dueDate}</td>
+                      <td className="py-3 pr-4">{formatDate(invoice.issuedAt)}</td>
+                      <td className="py-3">{formatDate(invoice.dueDate)}</td>
                     </tr>
                   ))}
                 </tbody>
