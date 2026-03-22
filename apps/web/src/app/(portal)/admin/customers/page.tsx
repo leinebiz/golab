@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { auth } from '@/lib/auth/config';
 import { prisma } from '@/lib/db';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,7 +22,10 @@ const PAGE_SIZE = 20;
 
 function creditStatusBadge(status: CreditStatus | undefined) {
   if (!status) return <Badge variant="gray">No account</Badge>;
-  const map: Record<CreditStatus, { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'gray' }> = {
+  const map: Record<
+    CreditStatus,
+    { label: string; variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'gray' }
+  > = {
     NOT_APPLIED: { label: 'Not applied', variant: 'gray' },
     PENDING_REVIEW: { label: 'Pending', variant: 'warning' },
     APPROVED: { label: 'Approved', variant: 'success' },
@@ -42,8 +47,18 @@ function formatDate(date: Date): string {
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  const adminRoles = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
+  if (!adminRoles.includes(role)) {
+    redirect('/login');
+  }
+
   const params = await searchParams;
   const search = typeof params.search === 'string' ? params.search : '';
   const page = Math.max(1, Number(params.page) || 1);
@@ -116,10 +131,7 @@ export default async function CustomersPage({
       </div>
 
       {/* Filters — client component for interactivity */}
-      <CustomerFilters
-        currentSearch={search}
-        currentPayment={paymentFilter}
-      />
+      <CustomerFilters currentSearch={search} currentPayment={paymentFilter} />
 
       {/* Desktop table */}
       <div className="hidden md:block">
@@ -172,13 +184,13 @@ export default async function CustomersPage({
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={customer.paymentType === 'CREDIT' ? 'default' : 'secondary'}>
+                        <Badge
+                          variant={customer.paymentType === 'CREDIT' ? 'default' : 'secondary'}
+                        >
                           {customer.paymentType}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {creditStatusBadge(customer.creditAccount?.status)}
-                      </TableCell>
+                      <TableCell>{creditStatusBadge(customer.creditAccount?.status)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {customer._count.requests}
                       </TableCell>
@@ -212,20 +224,16 @@ export default async function CustomersPage({
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                     <div>
-                      <span className="font-medium">Reg:</span>{' '}
-                      {customer.registrationNumber ?? '—'}
+                      <span className="font-medium">Reg:</span> {customer.registrationNumber ?? '—'}
                     </div>
                     <div>
-                      <span className="font-medium">Requests:</span>{' '}
-                      {customer._count.requests}
+                      <span className="font-medium">Requests:</span> {customer._count.requests}
                     </div>
                     <div>
-                      <span className="font-medium">Payment:</span>{' '}
-                      {customer.paymentType}
+                      <span className="font-medium">Payment:</span> {customer.paymentType}
                     </div>
                     <div>
-                      <span className="font-medium">Created:</span>{' '}
-                      {formatDate(customer.createdAt)}
+                      <span className="font-medium">Created:</span> {formatDate(customer.createdAt)}
                     </div>
                   </div>
                   {customer.users[0] && (
@@ -244,8 +252,8 @@ export default async function CustomersPage({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-            {Math.min(page * PAGE_SIZE, total)} of {total} customers
+            Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total}{' '}
+            customers
           </p>
           <div className="flex gap-2">
             {page > 1 ? (
