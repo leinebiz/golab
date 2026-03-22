@@ -6,66 +6,66 @@ export interface NavItem {
 }
 
 export const CUSTOMER_NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/portal/customer', icon: 'LayoutDashboard' },
-  { label: 'New Request', href: '/portal/customer/requests/new', icon: 'Plus' },
+  { label: 'Dashboard', href: '/customer', icon: 'LayoutDashboard' },
+  { label: 'New Request', href: '/customer/requests/new', icon: 'Plus' },
   {
     label: 'My Requests',
-    href: '/portal/customer/requests',
+    href: '/customer/requests',
     icon: 'ClipboardList',
     badgeKey: 'pendingActions',
   },
-  { label: 'Certificates', href: '/portal/customer/certificates', icon: 'FileCheck' },
-  { label: 'Finances', href: '/portal/customer/finances', icon: 'Wallet' },
-  { label: 'Tolerances', href: '/portal/customer/tolerances', icon: 'SlidersHorizontal' },
+  { label: 'Certificates', href: '/customer/certificates', icon: 'FileCheck' },
+  { label: 'Finances', href: '/customer/finances', icon: 'Wallet' },
+  { label: 'Tolerances', href: '/customer/tolerances', icon: 'SlidersHorizontal' },
   {
     label: 'Support',
-    href: '/portal/customer/chat',
+    href: '/customer/chat',
     icon: 'MessageCircle',
     badgeKey: 'unreadMessages',
   },
-  { label: 'Settings', href: '/portal/customer/settings', icon: 'Settings' },
+  { label: 'Settings', href: '/customer/settings', icon: 'Settings' },
 ];
 
 export const LAB_NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/portal/lab', icon: 'LayoutDashboard' },
+  { label: 'Dashboard', href: '/lab', icon: 'LayoutDashboard' },
   {
     label: 'Incoming Samples',
-    href: '/portal/lab/incoming',
+    href: '/lab/incoming',
     icon: 'PackageCheck',
     badgeKey: 'awaitingSamples',
   },
-  { label: 'In Progress', href: '/portal/lab/in-progress', icon: 'FlaskConical' },
-  { label: 'Upload Results', href: '/portal/lab/upload', icon: 'Upload' },
-  { label: 'Issues', href: '/portal/lab/issues', icon: 'AlertTriangle' },
+  { label: 'In Progress', href: '/lab/in-progress', icon: 'FlaskConical' },
+  { label: 'Upload Results', href: '/lab/upload', icon: 'Upload' },
+  { label: 'Issues', href: '/lab/issues', icon: 'AlertTriangle' },
 ];
 
 export const GOLAB_ADMIN_NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/portal/admin', icon: 'LayoutDashboard' },
-  { label: 'Requests', href: '/portal/admin/requests', icon: 'ClipboardList' },
+  { label: 'Dashboard', href: '/admin', icon: 'LayoutDashboard' },
+  { label: 'Requests', href: '/admin/requests', icon: 'ClipboardList' },
   {
     label: 'Review Queue',
-    href: '/portal/admin/review',
+    href: '/admin/review',
     icon: 'CheckSquare',
     badgeKey: 'awaitingReview',
   },
-  { label: 'Laboratories', href: '/portal/admin/labs', icon: 'Building2' },
-  { label: 'Test Catalogue', href: '/portal/admin/tests', icon: 'FlaskConical' },
-  { label: 'Customers', href: '/portal/admin/customers', icon: 'Users' },
-  { label: 'KPIs & Reports', href: '/portal/admin/reports', icon: 'BarChart3' },
-  { label: 'Disclaimers', href: '/portal/admin/disclaimers', icon: 'FileText' },
+  { label: 'Laboratories', href: '/admin/labs', icon: 'Building2' },
+  { label: 'Test Catalogue', href: '/admin/tests', icon: 'FlaskConical' },
+  { label: 'Customers', href: '/admin/customers', icon: 'Users' },
+  { label: 'KPIs & Reports', href: '/admin/reports', icon: 'BarChart3' },
+  { label: 'Disclaimers', href: '/admin/disclaimers', icon: 'FileText' },
 ];
 
 export const FINANCE_NAV: NavItem[] = [
-  { label: 'Dashboard', href: '/portal/finance', icon: 'LayoutDashboard' },
+  { label: 'Dashboard', href: '/finance', icon: 'LayoutDashboard' },
   {
     label: 'Credit Applications',
-    href: '/portal/finance/credit',
+    href: '/finance/credit',
     icon: 'CreditCard',
     badgeKey: 'pendingCredit',
   },
-  { label: 'Invoices', href: '/portal/finance/invoices', icon: 'Receipt' },
-  { label: 'Payments', href: '/portal/finance/payments', icon: 'Banknote' },
-  { label: 'Accounts', href: '/portal/finance/accounts', icon: 'Building' },
+  { label: 'Invoices', href: '/finance/invoices', icon: 'Receipt' },
+  { label: 'Payments', href: '/finance/payments', icon: 'Banknote' },
+  { label: 'Accounts', href: '/finance/accounts', icon: 'Building' },
 ];
 
 export function getNavForRole(role: string): NavItem[] {
