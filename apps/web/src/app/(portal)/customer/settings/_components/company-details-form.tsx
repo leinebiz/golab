@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOrganizationSchema, type UpdateOrganizationInput } from '@golab/shared';
@@ -14,7 +15,6 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
-import { useState } from 'react';
 
 interface CompanyDetailsFormProps {
   organizationId: string;
@@ -22,11 +22,13 @@ interface CompanyDetailsFormProps {
 
 export function CompanyDetailsForm({ organizationId }: CompanyDetailsFormProps) {
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<UpdateOrganizationInput>({
     resolver: zodResolver(UpdateOrganizationSchema),
@@ -37,6 +39,28 @@ export function CompanyDetailsForm({ organizationId }: CompanyDetailsFormProps) 
       industry: '',
     },
   });
+
+  useEffect(() => {
+    async function fetchOrg() {
+      try {
+        const res = await fetch(`/api/v1/organizations/${organizationId}`);
+        if (res.ok) {
+          const data = await res.json();
+          reset({
+            name: data.name ?? '',
+            registrationNumber: data.registrationNumber ?? '',
+            vatNumber: data.vatNumber ?? '',
+            industry: data.industry ?? '',
+          });
+        }
+      } catch {
+        // Fetch error — form remains empty
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOrg();
+  }, [organizationId, reset]);
 
   const onSubmit = async (data: UpdateOrganizationInput) => {
     setSaving(true);
@@ -111,7 +135,7 @@ export function CompanyDetailsForm({ organizationId }: CompanyDetailsFormProps) 
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={saving || !isDirty}>
+          <Button type="submit" disabled={saving || !isDirty || loading}>
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </CardFooter>

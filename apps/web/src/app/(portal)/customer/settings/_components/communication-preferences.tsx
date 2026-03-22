@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -32,7 +32,27 @@ const CHANNEL_OPTIONS = [
 export function CommunicationPreferences({ organizationId }: CommunicationPreferencesProps) {
   const [channel, setChannel] = useState<string>('EMAIL');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchPreference() {
+      try {
+        const res = await fetch(`/api/v1/organizations/${organizationId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.preferredCommChannel) {
+            setChannel(data.preferredCommChannel);
+          }
+        }
+      } catch {
+        // Fetch error — default remains
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPreference();
+  }, [organizationId]);
 
   const save = async () => {
     setSaving(true);
@@ -90,7 +110,7 @@ export function CommunicationPreferences({ organizationId }: CommunicationPrefer
         )}
       </CardContent>
       <CardFooter>
-        <Button onClick={save} disabled={saving}>
+        <Button onClick={save} disabled={saving || loading}>
           {saving ? 'Saving...' : 'Save Preferences'}
         </Button>
       </CardFooter>

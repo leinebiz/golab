@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CreateAddressSchema } from '@golab/shared';
@@ -54,6 +54,7 @@ type AddressType = 'BILLING' | 'COLLECTION' | 'DELIVERY' | 'LAB_RECEIVING';
 
 export function AddressesSection({ organizationId }: AddressesSectionProps) {
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,6 +81,23 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
   });
 
   const watchedType = watch('type');
+
+  useEffect(() => {
+    async function fetchAddresses() {
+      try {
+        const res = await fetch(`/api/v1/organizations/${organizationId}/addresses`);
+        if (res.ok) {
+          const data = await res.json();
+          setAddresses(data);
+        }
+      } catch {
+        // Fetch error
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAddresses();
+  }, [organizationId]);
 
   const openCreateDialog = () => {
     setEditingAddress(null);
@@ -188,7 +206,9 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
           </Button>
         </CardHeader>
         <CardContent>
-          {addresses.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-gray-500 py-4 text-center">Loading addresses...</p>
+          ) : addresses.length === 0 ? (
             <p className="text-sm text-gray-500 py-4 text-center">
               No addresses yet. Add your first address to get started.
             </p>
