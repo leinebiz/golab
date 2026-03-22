@@ -2,24 +2,80 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { formatZAR } from '@/lib/finance/format';
 import { PAYMENT_STATUS_VARIANT } from '@/lib/finance/status-variants';
+import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
-const SUMMARY = {
-  totalOutstanding: 0,
-  totalPaidThisMonth: 0,
-  pendingCreditApplications: 0,
-  overdueInvoices: 0,
-};
+export const dynamic = 'force-dynamic';
 
-const RECENT_PAYMENTS: {
-  id: string;
-  invoiceNumber: string;
-  organization: string;
-  amount: number;
-  date: string;
-  status: 'CONFIRMED' | 'PENDING' | 'FAILED';
-}[] = [];
+async function getFinanceSummary() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-export default function FinanceDashboardPage() {
+  const [outstandingResult, paidThisMonthResult, pendingCreditCount, overdueCount, recentPayments] =
+    await Promise.all([
+      prisma.invoice.aggregate({
+        where: { status: { in: ['ISSUED', 'PAYMENT_LINK_SENT', 'OVERDUE'] } },
+        _sum: { totalAmount: true },
+      }),
+      prisma.invoice.aggregate({
+        where: { status: 'PAID', paidAt: { gte: startOfMonth } },
+        _sum: { totalAmount: true },
+      }),
+      prisma.creditAccount.count({
+        where: { status: 'PENDING_REVIEW' },
+      }),
+      prisma.invoice.count({
+        where: { status: 'OVERDUE' },
+      }),
+      prisma.payment.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          invoice: {
+            select: {
+              invoiceNumber: true,
+              request: {
+                select: {
+                  organization: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+  return {
+    summary: {
+      totalOutstanding: Number(outstandingResult._sum.totalAmount ?? 0),
+      totalPaidThisMonth: Number(paidThisMonthResult._sum.totalAmount ?? 0),
+      pendingCreditApplications: pendingCreditCount,
+      overdueInvoices: overdueCount,
+    },
+    recentPayments: recentPayments.map((p) => ({
+      id: p.id,
+      invoiceNumber: p.invoice.invoiceNumber,
+      organization: p.invoice.request.organization.name,
+      amount: Number(p.amount),
+      date: p.createdAt.toISOString().split('T')[0],
+      status: p.status as 'CONFIRMED' | 'PENDING' | 'FAILED',
+    })),
+  };
+}
+
+export default async function FinanceDashboardPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role)) {
+    redirect('/login');
+  }
+
+  const { summary, recentPayments } = await getFinanceSummary();
+
   return (
     <div className="space-y-6">
       <div>
@@ -34,7 +90,7 @@ export default function FinanceDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-orange-600">
-              {formatZAR(SUMMARY.totalOutstanding)}
+              {formatZAR(summary.totalOutstanding)}
             </p>
           </CardContent>
         </Card>
@@ -44,7 +100,7 @@ export default function FinanceDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              {formatZAR(SUMMARY.totalPaidThisMonth)}
+              {formatZAR(summary.totalPaidThisMonth)}
             </p>
           </CardContent>
         </Card>
@@ -54,7 +110,7 @@ export default function FinanceDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-yellow-600">
-              {SUMMARY.pendingCreditApplications}
+              {summary.pendingCreditApplications}
             </p>
           </CardContent>
         </Card>
@@ -63,7 +119,7 @@ export default function FinanceDashboardPage() {
             <CardDescription>Overdue Invoices</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-red-600">{SUMMARY.overdueInvoices}</p>
+            <p className="text-3xl font-bold text-red-600">{summary.overdueInvoices}</p>
           </CardContent>
         </Card>
       </div>
@@ -74,7 +130,7 @@ export default function FinanceDashboardPage() {
           <CardDescription>Latest payment activity across all accounts</CardDescription>
         </CardHeader>
         <CardContent>
-          {RECENT_PAYMENTS.length === 0 ? (
+          {recentPayments.length === 0 ? (
             <p className="text-sm text-gray-500">No recent payments.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -89,7 +145,7 @@ export default function FinanceDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {RECENT_PAYMENTS.map((payment) => (
+                  {recentPayments.map((payment) => (
                     <tr key={payment.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{payment.invoiceNumber}</td>
                       <td className="py-3 pr-4">{payment.organization}</td>

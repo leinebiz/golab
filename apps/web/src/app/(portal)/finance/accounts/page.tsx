@@ -2,20 +2,56 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { formatZAR } from '@/lib/finance/format';
 import { CREDIT_STATUS_VARIANT } from '@/lib/finance/status-variants';
+import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
+
+export const dynamic = 'force-dynamic';
 
 type CreditStatus = 'NOT_APPLIED' | 'PENDING_REVIEW' | 'APPROVED' | 'DECLINED' | 'SUSPENDED';
 
-const PLACEHOLDER_ACCOUNTS: {
-  id: string;
-  organizationName: string;
-  paymentType: 'CREDIT' | 'COD';
-  creditStatus: CreditStatus;
-  creditLimit: number;
-  availableCredit: number;
-  outstandingBalance: number;
-}[] = [];
+async function getAccounts() {
+  const organizations = await prisma.organization.findMany({
+    where: { type: 'CUSTOMER' },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      name: true,
+      paymentType: true,
+      creditAccount: {
+        select: {
+          status: true,
+          creditLimit: true,
+          availableCredit: true,
+          outstandingBalance: true,
+        },
+      },
+    },
+  });
 
-export default function AccountsPage() {
+  return organizations.map((org) => ({
+    id: org.id,
+    organizationName: org.name,
+    paymentType: org.paymentType as 'CREDIT' | 'COD',
+    creditStatus: (org.creditAccount?.status ?? 'NOT_APPLIED') as CreditStatus,
+    creditLimit: Number(org.creditAccount?.creditLimit ?? 0),
+    availableCredit: Number(org.creditAccount?.availableCredit ?? 0),
+    outstandingBalance: Number(org.creditAccount?.outstandingBalance ?? 0),
+  }));
+}
+
+export default async function AccountsPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+  const role = (session.user as unknown as Record<string, unknown>).role as string;
+  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(role)) {
+    redirect('/login');
+  }
+
+  const accounts = await getAccounts();
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,7 +65,7 @@ export default function AccountsPage() {
           <CardDescription>Customer payment types and credit status</CardDescription>
         </CardHeader>
         <CardContent>
-          {PLACEHOLDER_ACCOUNTS.length === 0 ? (
+          {accounts.length === 0 ? (
             <p className="text-sm text-gray-500">No accounts found.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -45,7 +81,7 @@ export default function AccountsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {PLACEHOLDER_ACCOUNTS.map((account) => (
+                  {accounts.map((account) => (
                     <tr key={account.id} className="border-b">
                       <td className="py-3 pr-4 font-medium">{account.organizationName}</td>
                       <td className="py-3 pr-4">
