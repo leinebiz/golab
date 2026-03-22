@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/middleware';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+
+const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
 const ChangePasswordSchema = z
   .object({
@@ -23,10 +26,45 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+/**
+ * Verify the target user belongs to the requester's org (or requester is admin).
+ * Returns the target user if authorized, or a NextResponse error.
+ */
+async function verifyTargetUserOrg(
+  sessionUser: { id: string; role: string; organizationId: string },
+  targetUserId: string,
+) {
+  const targetUser = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { id: true, organizationId: true },
+  });
+
+  if (!targetUser) {
+    return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) };
+  }
+
+  if (
+    !ADMIN_ROLES.includes(sessionUser.role) &&
+    targetUser.organizationId !== sessionUser.organizationId
+  ) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+
+  return { targetUser };
+}
+
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const session = await requireAuth();
+    const sessionUser = session.user as { id: string; role: string; organizationId: string };
     const { id } = await context.params;
     const body = await request.json();
+
+    // Verify target user belongs to requester's org
+    const check = await verifyTargetUserOrg(sessionUser, id);
+    if ('error' in check && check.error instanceof NextResponse) {
+      return check.error;
+    }
 
     // Password change action
     if (body._action === 'changePassword') {
@@ -61,11 +99,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // Default: update user profile fields
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     const allowedFields = [
       'name',
       'phone',
@@ -98,6 +131,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(updated);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to update user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -105,11 +141,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const session = await requireAuth();
+    const sessionUser = session.user as { id: string; role: string; organizationId: string };
     const { id } = await context.params;
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Verify target user belongs to requester's org
+    const check = await verifyTargetUserOrg(sessionUser, id);
+    if ('error' in check && check.error instanceof NextResponse) {
+      return check.error;
     }
 
     // Soft delete - deactivate rather than delete
@@ -120,6 +159,9 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to deactivate user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

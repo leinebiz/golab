@@ -93,6 +93,7 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
       }
     } catch (error: unknown) {
       console.error('Failed to load tolerances:', error);
+      alert('Failed to load tolerances. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -156,6 +157,7 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
       setDialogOpen(false);
     } catch (error: unknown) {
       console.error('Failed to save tolerance:', error);
+      alert('Failed to save tolerance. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -172,6 +174,7 @@ export function TolerancesContent({ organizationId }: TolerancesContentProps) {
       setTolerances((prev) => prev.filter((t) => t.id !== id));
     } catch (error: unknown) {
       console.error('Failed to delete tolerance:', error);
+      alert('Failed to delete tolerance. Please try again.');
     }
   };
 

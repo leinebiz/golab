@@ -34,9 +34,9 @@ async function getAccounts() {
     organizationName: org.name,
     paymentType: org.paymentType as 'CREDIT' | 'COD',
     creditStatus: (org.creditAccount?.status ?? 'NOT_APPLIED') as CreditStatus,
-    creditLimit: Number(org.creditAccount?.creditLimit ?? 0),
-    availableCredit: Number(org.creditAccount?.availableCredit ?? 0),
-    outstandingBalance: Number(org.creditAccount?.outstandingBalance ?? 0),
+    creditLimit: org.creditAccount?.creditLimit?.toString() ?? '0',
+    availableCredit: org.creditAccount?.availableCredit?.toString() ?? '0',
+    outstandingBalance: org.creditAccount?.outstandingBalance?.toString() ?? '0',
   }));
 }
 

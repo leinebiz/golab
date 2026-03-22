@@ -35,54 +35,75 @@ async function getCustomerData(organizationId: string) {
     outstandingInvoices,
     recentRequests,
   ] = await Promise.all([
-    prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: { name: true },
-    }),
-    prisma.request.count({
-      where: {
-        organizationId,
-        status: { notIn: ['CLOSED', 'CANCELLED'] },
-      },
-    }),
-    prisma.subRequest.count({
-      where: {
-        request: { organizationId },
-        status: {
-          in: [
-            'TESTING_SCHEDULED',
-            'TESTING_IN_PROGRESS',
-            'TESTING_DELAYED',
-            'TESTING_COMPLETED',
-            'AWAITING_GOLAB_REVIEW',
-          ],
+    prisma.organization
+      .findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      })
+      .catch(() => null),
+    prisma.request
+      .count({
+        where: {
+          organizationId,
+          status: { notIn: ['CLOSED', 'CANCELLED'] },
         },
-      },
-    }),
-    prisma.subRequest.count({
-      where: {
-        request: { organizationId },
-        status: { in: ['APPROVED_FOR_RELEASE', 'RELEASED_TO_CUSTOMER'] },
-      },
-    }),
-    prisma.invoice.count({
-      where: {
-        request: { organizationId },
-        status: { in: ['ISSUED', 'OVERDUE'] },
-      },
-    }),
-    prisma.request.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        reference: true,
-        status: true,
-        createdAt: true,
-        _count: { select: { subRequests: true } },
-      },
-    }),
+      })
+      .catch(() => 0),
+    prisma.subRequest
+      .count({
+        where: {
+          request: { organizationId },
+          status: {
+            in: [
+              'TESTING_SCHEDULED',
+              'TESTING_IN_PROGRESS',
+              'TESTING_DELAYED',
+              'TESTING_COMPLETED',
+              'AWAITING_GOLAB_REVIEW',
+            ],
+          },
+        },
+      })
+      .catch(() => 0),
+    prisma.subRequest
+      .count({
+        where: {
+          request: { organizationId },
+          status: { in: ['APPROVED_FOR_RELEASE', 'RELEASED_TO_CUSTOMER'] },
+        },
+      })
+      .catch(() => 0),
+    prisma.invoice
+      .count({
+        where: {
+          request: { organizationId },
+          status: { in: ['ISSUED', 'OVERDUE'] },
+        },
+      })
+      .catch(() => 0),
+    prisma.request
+      .findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          createdAt: true,
+          _count: { select: { subRequests: true } },
+        },
+      })
+      .catch(
+        () =>
+          [] as {
+            id: string;
+            reference: string;
+            status: string;
+            createdAt: Date;
+            _count: { subRequests: number };
+          }[],
+      ),
   ]);
 
   return {

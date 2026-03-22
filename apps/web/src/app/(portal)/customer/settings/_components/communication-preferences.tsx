@@ -47,6 +47,7 @@ export function CommunicationPreferences({ organizationId }: CommunicationPrefer
         }
       } catch (error: unknown) {
         console.error('Failed to load preferences:', error);
+        setMessage({ type: 'error', text: 'Failed to load preferences. Please refresh the page.' });
       } finally {
         setLoading(false);
       }

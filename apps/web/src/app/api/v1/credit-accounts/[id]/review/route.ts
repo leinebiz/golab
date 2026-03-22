@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth/config';
-import { logger } from '@/lib/observability/logger';
+import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
+import { isValidAction, isAuthorizedRole } from '../../review-validation';
+
+const ReviewSchema = z.object({
+  action: z.enum(['approve', 'decline']),
+  approvedLimit: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+/** Validate that a string represents a valid credit limit (positive, max 12 digits, max 2 decimals). */
+function validateCreditLimit(value: string): { valid: true; limit: number } | { valid: false } {
+  if (!/^\d+(\.\d{1,2})?$/.test(value)) {
+    return { valid: false };
+  }
+  const limit = parseFloat(value);
+  if (isNaN(limit) || limit < 0 || limit > 9999999999.99) {
+    return { valid: false };
+  }
+  return { valid: true, limit };
+}
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -10,21 +31,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const user = session.user as { id: string; role: string };
-  if (!['GOLAB_ADMIN', 'GOLAB_FINANCE'].includes(user.role)) {
+  if (!isAuthorizedRole(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const { id } = await params;
+  const requestId = crypto.randomUUID();
+  const reqLogger = createRequestLogger(requestId, user.id);
 
   try {
     const body = await request.json();
-    const { action, approvedLimit, notes } = body as {
-      action: 'approve' | 'decline';
-      approvedLimit?: string;
-      notes?: string;
-    };
+    const parsed = ReviewSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
 
-    if (!action || !['approve', 'decline'].includes(action)) {
+    const { action, approvedLimit, notes } = parsed.data;
+
+    if (!isValidAction(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
@@ -34,13 +58,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     if (action === 'approve') {
-      const limit = parseFloat(approvedLimit ?? '0');
+      const limitStr = approvedLimit ?? '0';
+      const result = validateCreditLimit(limitStr);
+      if (!result.valid) {
+        return NextResponse.json({ error: 'Invalid credit limit' }, { status: 400 });
+      }
       await prisma.creditAccount.update({
         where: { id },
         data: {
           status: 'APPROVED',
-          creditLimit: limit,
-          availableCredit: limit,
+          creditLimit: result.limit,
+          availableCredit: result.limit,
           reviewedBy: user.id,
           reviewedAt: new Date(),
           reviewNotes: notes ?? null,
@@ -58,10 +86,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       });
     }
 
-    logger.info({ creditAccountId: id, action, reviewedBy: user.id }, 'credit.review.completed');
+    metrics.reviewDequeued({ entity: 'credit_account', action });
+    reqLogger.info({ creditAccountId: id, action }, 'credit.review.completed');
     return NextResponse.json({ success: true });
   } catch (err) {
-    logger.error({ error: err, creditAccountId: id }, 'credit.review.failed');
+    reqLogger.error(
+      { error: err instanceof Error ? err.message : 'Unknown error', creditAccountId: id },
+      'credit.review.failed',
+    );
     return NextResponse.json({ error: 'Failed to review credit account' }, { status: 500 });
   }
 }

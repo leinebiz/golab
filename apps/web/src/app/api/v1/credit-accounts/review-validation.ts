@@ -16,10 +16,39 @@ export function isAuthorizedRole(role: string): boolean {
   return (ALLOWED_ROLES as readonly string[]).includes(role);
 }
 
+export type ParsedLimit = { valid: true; value: number } | { valid: false; error: string };
+
 /**
- * Parse the approved limit string the same way the route handler does:
- * `parseFloat(approvedLimit ?? '0')`
+ * Parse and validate the approved credit limit string.
+ *
+ * Rejects non-numeric strings, negative values, values with more than
+ * 2 decimal places, and values exceeding the Decimal(12,2) column max.
  */
-export function parseApprovedLimit(approvedLimit: string | undefined): number {
-  return parseFloat(approvedLimit ?? '0');
+export function parseApprovedLimit(approvedLimit: string | undefined): ParsedLimit {
+  if (approvedLimit === undefined || approvedLimit === '') {
+    return { valid: true, value: 0 };
+  }
+
+  // Must be digits with optional up-to-2 decimal places
+  if (!/^\d+(\.\d{1,2})?$/.test(approvedLimit)) {
+    return {
+      valid: false,
+      error: 'Invalid format: must be a positive number with at most 2 decimal places',
+    };
+  }
+
+  const value = parseFloat(approvedLimit);
+  if (isNaN(value)) {
+    return { valid: false, error: 'Not a valid number' };
+  }
+
+  if (value < 0) {
+    return { valid: false, error: 'Credit limit must not be negative' };
+  }
+
+  if (value > 9999999999.99) {
+    return { valid: false, error: 'Credit limit exceeds maximum allowed value' };
+  }
+
+  return { valid: true, value };
 }

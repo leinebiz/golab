@@ -10,8 +10,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
     redirect('/login');
   }
 
-  const role =
-    ((session.user as unknown as Record<string, unknown>).role as string) ?? 'CUSTOMER_USER';
+  const rawRole = (session.user as Record<string, unknown>)?.role;
+  const role = typeof rawRole === 'string' ? rawRole : 'CUSTOMER_USER';
   const userName = session.user.name ?? 'User';
   const navItems = getNavForRole(role);
 

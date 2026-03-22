@@ -60,8 +60,8 @@ export default async function CustomersPage({
   }
 
   const params = await searchParams;
-  const search = typeof params.search === 'string' ? params.search : '';
-  const page = Math.max(1, Number(params.page) || 1);
+  const search = (typeof params.search === 'string' ? params.search : '').slice(0, 200);
+  const page = Math.max(1, Math.min(Number(params.page) || 1, 1000));
   const paymentFilter = typeof params.payment === 'string' ? params.payment : 'all';
 
   // Build where clause

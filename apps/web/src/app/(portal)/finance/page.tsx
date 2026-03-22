@@ -14,42 +14,61 @@ async function getFinanceSummary() {
 
   const [outstandingResult, paidThisMonthResult, pendingCreditCount, overdueCount, recentPayments] =
     await Promise.all([
-      prisma.invoice.aggregate({
-        where: { status: { in: ['ISSUED', 'PAYMENT_LINK_SENT', 'OVERDUE'] } },
-        _sum: { totalAmount: true },
-      }),
-      prisma.invoice.aggregate({
-        where: { status: 'PAID', paidAt: { gte: startOfMonth } },
-        _sum: { totalAmount: true },
-      }),
-      prisma.creditAccount.count({
-        where: { status: 'PENDING_REVIEW' },
-      }),
-      prisma.invoice.count({
-        where: { status: 'OVERDUE' },
-      }),
-      prisma.payment.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          invoice: {
-            select: {
-              invoiceNumber: true,
-              request: {
-                select: {
-                  organization: { select: { name: true } },
+      prisma.invoice
+        .aggregate({
+          where: { status: { in: ['ISSUED', 'PAYMENT_LINK_SENT', 'OVERDUE'] } },
+          _sum: { totalAmount: true },
+        })
+        .catch(() => ({ _sum: { totalAmount: null } })),
+      prisma.invoice
+        .aggregate({
+          where: { status: 'PAID', paidAt: { gte: startOfMonth } },
+          _sum: { totalAmount: true },
+        })
+        .catch(() => ({ _sum: { totalAmount: null } })),
+      prisma.creditAccount
+        .count({
+          where: { status: 'PENDING_REVIEW' },
+        })
+        .catch(() => 0),
+      prisma.invoice
+        .count({
+          where: { status: 'OVERDUE' },
+        })
+        .catch(() => 0),
+      prisma.payment
+        .findMany({
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            invoice: {
+              select: {
+                invoiceNumber: true,
+                request: {
+                  select: {
+                    organization: { select: { name: true } },
+                  },
                 },
               },
             },
           },
-        },
-      }),
+        })
+        .catch(
+          () =>
+            [] as {
+              id: string;
+              amount: { toString(): string };
+              createdAt: Date;
+              status: string;
+              invoice: { invoiceNumber: string; request: { organization: { name: string } } };
+            }[],
+        ),
     ]);
 
   return {
     summary: {
-      totalOutstanding: Number(outstandingResult._sum.totalAmount ?? 0),
-      totalPaidThisMonth: Number(paidThisMonthResult._sum.totalAmount ?? 0),
+      totalOutstanding: outstandingResult._sum.totalAmount?.toString() ?? '0',
+      totalPaidThisMonth: paidThisMonthResult._sum.totalAmount?.toString() ?? '0',
       pendingCreditApplications: pendingCreditCount,
       overdueInvoices: overdueCount,
     },
@@ -57,7 +76,7 @@ async function getFinanceSummary() {
       id: p.id,
       invoiceNumber: p.invoice.invoiceNumber,
       organization: p.invoice.request.organization.name,
-      amount: Number(p.amount),
+      amount: p.amount.toString(),
       date: p.createdAt.toISOString().split('T')[0],
       status: p.status as 'CONFIRMED' | 'PENDING' | 'FAILED',
     })),

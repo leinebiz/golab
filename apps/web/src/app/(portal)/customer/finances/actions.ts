@@ -38,9 +38,19 @@ export async function submitCreditApplication(
     return { success: false, error: 'Reason for application is required' };
   }
 
+  // Validate format: positive number, max 2 decimal places, within Decimal(12,2) bounds
+  if (!/^\d+(\.\d{1,2})?$/.test(requestedLimit)) {
+    return {
+      success: false,
+      error: 'Credit limit must be a positive number with at most 2 decimal places',
+    };
+  }
   const parsedLimit = parseFloat(requestedLimit);
-  if (isNaN(parsedLimit) || parsedLimit <= 0) {
-    return { success: false, error: 'Requested credit limit must be a positive number' };
+  if (isNaN(parsedLimit) || parsedLimit <= 0 || parsedLimit > 9999999999.99) {
+    return {
+      success: false,
+      error: 'Requested credit limit must be a positive number within allowed range',
+    };
   }
 
   // Check if there's already a pending application

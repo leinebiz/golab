@@ -153,6 +153,7 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
       setDialogOpen(false);
     } catch (error: unknown) {
       console.error('Failed to save address:', error);
+      alert('Failed to save address. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -169,6 +170,7 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
       setAddresses((prev) => prev.filter((a) => a.id !== addressId));
     } catch (error: unknown) {
       console.error('Failed to delete address:', error);
+      alert('Failed to delete address. Please try again.');
     }
   };
 
@@ -190,6 +192,7 @@ export function AddressesSection({ organizationId }: AddressesSectionProps) {
       );
     } catch (error: unknown) {
       console.error('Failed to set default address:', error);
+      alert('Failed to set default address. Please try again.');
     }
   };
 

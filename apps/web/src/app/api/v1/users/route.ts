@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/middleware';
 import { InviteUserSchema } from '@golab/shared';
+
+const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireAuth();
+    const user = session.user as { id: string; role: string; organizationId: string };
+
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get('organizationId');
+    const queryOrgId = searchParams.get('organizationId');
+
+    // Admin roles can query any org; customer roles always use their own org
+    const organizationId =
+      ADMIN_ROLES.includes(user.role) && queryOrgId ? queryOrgId : user.organizationId;
 
     if (!organizationId) {
       return NextResponse.json({ error: 'organizationId is required' }, { status: 400 });
@@ -28,6 +38,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(users);
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to fetch users:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -35,6 +48,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireAuth();
+    const user = session.user as { id: string; role: string; organizationId: string };
+
     const body = await request.json();
     const parsed = InviteUserSchema.safeParse(body);
 
@@ -43,7 +59,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get('organizationId');
+    const queryOrgId = searchParams.get('organizationId');
+
+    // Admin roles can invite to any org; customer roles always use their own org
+    const organizationId =
+      ADMIN_ROLES.includes(user.role) && queryOrgId ? queryOrgId : user.organizationId;
 
     if (!organizationId) {
       return NextResponse.json({ error: 'organizationId is required' }, { status: 400 });
@@ -57,7 +77,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
     }
 
-    const user = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         email: parsed.data.email,
         name: parsed.data.name,
@@ -69,16 +89,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        isActive: newUser.isActive,
+        createdAt: newUser.createdAt,
       },
       { status: 201 },
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
+    if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
     console.error('Failed to invite user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
