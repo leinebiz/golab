@@ -81,7 +81,11 @@ export const authConfig: NextAuthConfig = {
     },
     async authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnPortal = nextUrl.pathname.startsWith('/portal');
+      const isOnPortal =
+        nextUrl.pathname.startsWith('/admin') ||
+        nextUrl.pathname.startsWith('/customer') ||
+        nextUrl.pathname.startsWith('/finance') ||
+        nextUrl.pathname.startsWith('/lab');
       const isOnAuth =
         nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
 
@@ -91,7 +95,7 @@ export const authConfig: NextAuthConfig = {
       }
 
       if (isLoggedIn && isOnAuth) {
-        return Response.redirect(new URL('/portal', nextUrl));
+        return Response.redirect(new URL('/customer', nextUrl));
       }
 
       return true;
