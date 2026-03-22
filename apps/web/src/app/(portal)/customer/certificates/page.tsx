@@ -109,7 +109,8 @@ export default function CertificatesPage() {
         const json = await res.json();
         setData(json.data);
         setPagination(json.pagination);
-      } catch {
+      } catch (err) {
+        console.error('Failed to fetch certificates:', err);
         setData([]);
       } finally {
         setLoading(false);
@@ -133,7 +134,7 @@ export default function CertificatesPage() {
       const json = await res.json();
       window.open(json.data.url, '_blank');
     } catch {
-      // Silently fail — user can retry
+      alert('Failed to download certificate. Please try again.');
     }
   };
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/auth/middleware';
+import { auth } from '@/lib/auth/config';
 import { handleApiError } from '@/lib/api/errors';
 
 /**
@@ -43,11 +44,27 @@ export async function GET(request: NextRequest) {
     }
     // "all" -> no additional filter
 
+    // Org-scope: customer roles can only see their own org's certificates
+    const session = await auth();
+    const user = session!.user as { role: string; organizationId: string };
+    if (['CUSTOMER_ADMIN', 'CUSTOMER_USER'].includes(user.role)) {
+      where.subRequest = {
+        ...where.subRequest,
+        request: {
+          ...(where.subRequest?.request ?? {}),
+          organizationId: user.organizationId,
+        },
+      };
+    }
+
     // Search by request reference
     if (search) {
       where.subRequest = {
         ...where.subRequest,
-        request: { reference: { contains: search, mode: 'insensitive' } },
+        request: {
+          ...(where.subRequest?.request ?? {}),
+          reference: { contains: search, mode: 'insensitive' },
+        },
       };
     }
 
