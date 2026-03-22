@@ -1,12 +1,22 @@
 import type { ReactNode } from 'react';
+import { redirect } from 'next/navigation';
 import { PortalShell } from '@/components/layouts/portal-shell';
-import { CUSTOMER_NAV } from '@golab/shared';
+import { auth } from '@/lib/auth/config';
+import { getNavForRole } from '@golab/shared';
 
-// In production, this reads from the session to determine role + nav
-// For now, default to customer nav as placeholder
-export default function PortalLayout({ children }: { children: ReactNode }) {
+export default async function PortalLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  const role =
+    ((session.user as unknown as Record<string, unknown>).role as string) ?? 'CUSTOMER_USER';
+  const userName = session.user.name ?? 'User';
+  const navItems = getNavForRole(role);
+
   return (
-    <PortalShell navItems={CUSTOMER_NAV} role="CUSTOMER_ADMIN" userName="Demo User">
+    <PortalShell navItems={navItems} role={role} userName={userName}>
       {children}
     </PortalShell>
   );
