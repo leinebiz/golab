@@ -24,12 +24,17 @@ export async function GET(request: NextRequest) {
     where.isActive = isActiveParam === 'true';
   }
 
+  const includeTests = searchParams.get('includeTests') === 'true';
+
   const [labs, total] = await Promise.all([
     prisma.laboratory.findMany({
       where,
       include: {
         organization: { select: { id: true, name: true } },
         _count: { select: { labTests: true } },
+        ...(includeTests
+          ? { labTests: { where: { isActive: true }, select: { testCatalogueId: true } } }
+          : {}),
       },
       orderBy: { name: 'asc' },
       skip: (page - 1) * pageSize,

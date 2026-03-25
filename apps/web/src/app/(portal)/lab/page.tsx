@@ -46,25 +46,25 @@ export default async function LabDashboardPage() {
       title: 'Incoming Samples',
       value: kpis.incoming,
       description: SUB_REQUEST_STATUS_LABELS.DELIVERED_TO_LAB,
-      href: '/portal/lab/incoming',
+      href: '/lab/incoming',
     },
     {
       title: 'In Progress',
       value: kpis.inProgress,
       description: 'Samples being tested',
-      href: '/portal/lab/in-progress',
+      href: '/lab/in-progress',
     },
     {
       title: 'Completed Today',
       value: kpis.completedToday,
       description: 'Tests finished today',
-      href: '/portal/lab/upload',
+      href: '/lab/upload',
     },
     {
       title: 'Open Issues',
       value: kpis.openIssues,
       description: 'Unresolved sample issues',
-      href: '/portal/lab/issues',
+      href: '/lab/issues',
     },
   ];
 

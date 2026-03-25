@@ -84,7 +84,7 @@ export function InProgressActions({
   }
 
   function handleMarkComplete() {
-    router.push(`/portal/lab/upload?subRequest=${subRequestId}`);
+    router.push(`/lab/upload?subRequest=${subRequestId}`);
   }
 
   const canFlagDelay = [

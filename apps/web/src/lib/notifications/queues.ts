@@ -16,17 +16,17 @@ const defaultJobOptions = {
   removeOnFail: 5000,
 };
 
-const portalQueue = new Queue('notification:portal', {
+const portalQueue = new Queue('notification-portal', {
   connection: redisConnectionOptions,
   defaultJobOptions,
 });
 
-const emailQueue = new Queue('notification:email', {
+const emailQueue = new Queue('notification-email', {
   connection: redisConnectionOptions,
   defaultJobOptions,
 });
 
-const whatsappQueue = new Queue('notification:whatsapp', {
+const whatsappQueue = new Queue('notification-whatsapp', {
   connection: redisConnectionOptions,
   defaultJobOptions,
 });
@@ -86,7 +86,7 @@ async function markFailed(notificationId: string, reason: string): Promise<void>
 /** Portal worker: DB record already exists, just mark delivered. */
 export function createPortalWorker(): Worker<NotificationJobPayload, unknown, string> {
   return new Worker<NotificationJobPayload, unknown, string>(
-    'notification:portal',
+    'notification-portal',
     async (job) => {
       await markSent(job.data.notificationId);
       // Portal notifications are "delivered" immediately (user reads in-app)
@@ -102,7 +102,7 @@ export function createPortalWorker(): Worker<NotificationJobPayload, unknown, st
 /** Email worker: sends via email provider, then updates status. */
 export function createEmailWorker(): Worker<NotificationJobPayload, unknown, string> {
   return new Worker<NotificationJobPayload, unknown, string>(
-    'notification:email',
+    'notification-email',
     async (job) => {
       try {
         const user = await prisma.user.findUniqueOrThrow({
@@ -140,7 +140,7 @@ export function createEmailWorker(): Worker<NotificationJobPayload, unknown, str
 /** WhatsApp worker: sends via Twilio provider, then updates status. */
 export function createWhatsAppWorker(): Worker<NotificationJobPayload, unknown, string> {
   return new Worker<NotificationJobPayload, unknown, string>(
-    'notification:whatsapp',
+    'notification-whatsapp',
     async (job) => {
       try {
         await sendWhatsAppMessage({

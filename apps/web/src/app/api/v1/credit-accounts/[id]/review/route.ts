@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth/config';
 import { createRequestLogger } from '@/lib/observability/logger';
 import { metrics } from '@/lib/observability/metrics';
 import { isValidAction, isAuthorizedRole } from '../../review-validation';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 const ReviewSchema = z.object({
   action: z.enum(['approve', 'decline']),
@@ -88,6 +89,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     metrics.reviewDequeued({ entity: 'credit_account', action });
     reqLogger.info({ creditAccountId: id, action }, 'credit.review.completed');
+
+    // Dispatch credit notification
+    const creditAccount = await prisma.creditAccount.findUnique({
+      where: { id },
+      include: { organization: { include: { users: { select: { id: true } } } } },
+    });
+    if (creditAccount) {
+      const eventType =
+        action === 'approve' ? ('credit.approved' as const) : ('credit.declined' as const);
+      dispatchNotification(eventType, {
+        recipientUserIds: creditAccount.organization.users.map((u: { id: string }) => u.id),
+        data: { organizationName: creditAccount.organization.name, action },
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     reqLogger.error(

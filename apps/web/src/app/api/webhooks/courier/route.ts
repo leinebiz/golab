@@ -4,6 +4,8 @@ import type { WaybillStatus, Prisma } from '@golab/database';
 import { logger } from '@/lib/observability/logger';
 import { getCourierProvider } from '@/lib/integrations/courier';
 import { executeTransition } from '@/lib/workflow/engine';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import type { NotificationEventType } from '@/lib/notifications/types';
 
 // ============================================================
 // Status mapping: courier waybill status -> sub-request status
@@ -107,6 +109,34 @@ export async function POST(request: NextRequest) {
       logger.warn(
         { waybillNumber, targetSubRequestStatus, error: err },
         'courier.webhook.transition_skipped',
+      );
+    }
+  }
+
+  // Dispatch sample notifications based on status
+  const notifyStatus: Partial<Record<WaybillStatus, NotificationEventType>> = {
+    COLLECTED: 'sample.collected',
+    DELIVERED: 'sample.delivered',
+  };
+  const eventType = notifyStatus[status];
+  if (eventType) {
+    // Fetch request info for notification context
+    const subReq = await prisma.subRequest.findUnique({
+      where: { id: waybill.subRequestId },
+      include: { request: { select: { id: true, reference: true, organizationId: true } } },
+    });
+    if (subReq) {
+      const orgUsers = await prisma.user.findMany({
+        where: { organizationId: subReq.request.organizationId },
+        select: { id: true },
+      });
+      dispatchNotification(eventType, {
+        recipientUserIds: orgUsers.map((u) => u.id),
+        requestId: subReq.request.id,
+        subRequestId: waybill.subRequestId,
+        data: { requestRef: subReq.request.reference, waybillNumber, courierStatus: status },
+      }).catch((err) =>
+        logger.error({ error: err, waybillNumber }, 'courier.webhook.notification_failed'),
       );
     }
   }

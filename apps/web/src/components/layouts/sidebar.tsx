@@ -75,7 +75,7 @@ export function Sidebar({ navItems, userName }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b">
         {!collapsed && (
-          <Link href="/portal" className="text-xl font-bold text-blue-600">
+          <Link href="/" className="text-xl font-bold text-blue-600">
             GoLab
           </Link>
         )}
