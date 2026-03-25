@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { LogSampleIssueSchema } from '@golab/shared';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -60,6 +61,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       return issue;
     });
+
+    // Dispatch sample exception notification
+    const subReqWithRequest = await prisma.subRequest.findUnique({
+      where: { id },
+      include: { request: { select: { id: true, reference: true, organizationId: true } } },
+    });
+    if (subReqWithRequest) {
+      const orgUsers = await prisma.user.findMany({
+        where: { organizationId: subReqWithRequest.request.organizationId },
+        select: { id: true },
+      });
+      dispatchNotification('sample.exception', {
+        recipientUserIds: orgUsers.map((u) => u.id),
+        requestId: subReqWithRequest.request.id,
+        subRequestId: id,
+        data: {
+          requestRef: subReqWithRequest.request.reference,
+          issueType: parsed.data.issueType,
+          comments: parsed.data.comments,
+        },
+      }).catch(() => {});
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

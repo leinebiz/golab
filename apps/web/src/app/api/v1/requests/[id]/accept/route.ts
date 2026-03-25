@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@golab/database';
 import { requireAuth } from '@/lib/auth/middleware';
 import { executeTransition } from '@/lib/workflow/engine';
+import { createRequestLogger } from '@/lib/observability/logger';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,6 +38,71 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       triggeredBy: { userId, role, type: 'user' },
       reason: 'Customer accepted quote',
     });
+
+    const reqLogger = createRequestLogger(crypto.randomUUID(), userId);
+
+    // Auto-create invoice from quote
+    const reqWithQuote = await prisma.request.findUnique({
+      where: { id },
+      include: { quote: true, invoice: true, organization: { select: { id: true, name: true } } },
+    });
+
+    if (reqWithQuote?.quote && !reqWithQuote.invoice) {
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const count = await prisma.invoice.count();
+      const invoiceNumber = `INV-${dateStr}-${String(count + 1).padStart(5, '0')}`;
+
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      await prisma.invoice.create({
+        data: {
+          requestId: id,
+          invoiceNumber,
+          status: 'ISSUED',
+          subtotal: reqWithQuote.quote.subtotal,
+          vatAmount: reqWithQuote.quote.vatAmount,
+          totalAmount: reqWithQuote.quote.totalAmount,
+          lineItems: reqWithQuote.quote.lineItems as object,
+          dueDate,
+          issuedAt: new Date(),
+        },
+      });
+
+      // Transition: ACCEPTED_BY_CUSTOMER -> INVOICE_GENERATED
+      try {
+        await executeTransition({
+          entityType: 'Request',
+          entityId: id,
+          targetStatus: 'INVOICE_GENERATED',
+          triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'system' },
+          reason: 'Auto-generated invoice after quote acceptance',
+        });
+      } catch (err) {
+        reqLogger.warn({ error: err }, 'accept.invoice_transition_skipped');
+      }
+    }
+
+    // Dispatch notifications (fire-and-forget)
+    const orgUsers = await prisma.user.findMany({
+      where: { organizationId },
+      select: { id: true },
+    });
+    const recipientIds = orgUsers.map((u) => u.id);
+
+    dispatchNotification('quote.accepted', {
+      recipientUserIds: recipientIds,
+      requestId: id,
+      data: { requestRef: reqWithQuote?.reference ?? id },
+    }).catch((err) => reqLogger.error({ error: err }, 'notification.quote_accepted.failed'));
+
+    if (reqWithQuote?.quote && !reqWithQuote.invoice) {
+      dispatchNotification('invoice.generated', {
+        recipientUserIds: recipientIds,
+        requestId: id,
+        data: { requestRef: reqWithQuote?.reference ?? id },
+      }).catch((err) => reqLogger.error({ error: err }, 'notification.invoice_generated.failed'));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

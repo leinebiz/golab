@@ -3,6 +3,8 @@ import { prisma } from '@golab/database';
 import { logger } from '@/lib/observability/logger';
 import { verifyWebhookSignature, parseWebhookEvent } from '@/lib/integrations/stripe/provider';
 import { executeTransition } from '@/lib/workflow/engine';
+import { bookWaybillsForRequest } from '@/lib/workflow/book-waybills';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function POST(request: NextRequest) {
   const signature = request.headers.get('stripe-signature');
@@ -83,7 +85,9 @@ async function handleCheckoutCompleted(parsed: {
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: parsed.invoiceId },
-    include: { request: true },
+    include: {
+      request: { select: { id: true, status: true, organizationId: true, reference: true } },
+    },
   });
 
   if (!invoice) {
@@ -149,6 +153,30 @@ async function handleCheckoutCompleted(parsed: {
         { requestId: invoice.request.id, invoiceId: invoice.id },
         'stripe.webhook.transition_to_payment_received',
       );
+
+      // Auto-transition: PAYMENT_RECEIVED -> IN_PROGRESS
+      try {
+        await executeTransition({
+          entityType: 'Request',
+          entityId: invoice.request.id,
+          targetStatus: 'IN_PROGRESS',
+          triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'webhook' },
+          reason: 'Auto-transitioned after payment received',
+        });
+      } catch (err) {
+        logger.warn(
+          { error: err, requestId: invoice.request.id },
+          'stripe.webhook.in_progress_transition_skipped',
+        );
+      }
+
+      // Auto-book waybills for all sub-requests
+      bookWaybillsForRequest(invoice.request.id).catch((err) =>
+        logger.error(
+          { error: err, requestId: invoice.request.id },
+          'stripe.webhook.waybill_booking_failed',
+        ),
+      );
     } catch (err) {
       logger.error(
         { error: err, requestId: invoice.request.id },
@@ -156,4 +184,15 @@ async function handleCheckoutCompleted(parsed: {
       );
     }
   }
+
+  // Notify customer of payment confirmation
+  const orgUsers = await prisma.user.findMany({
+    where: { organizationId: invoice.request.organizationId },
+    select: { id: true },
+  });
+  dispatchNotification('payment.confirmed', {
+    recipientUserIds: orgUsers.map((u) => u.id),
+    requestId: invoice.request.id,
+    data: { requestRef: invoice.request.reference, invoiceNumber: invoice.invoiceNumber },
+  }).catch((err) => logger.error({ error: err }, 'stripe.webhook.notification_failed'));
 }
