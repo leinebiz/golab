@@ -52,7 +52,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/portal');
+      router.push('/');
       router.refresh();
     } catch {
       toast({
@@ -67,7 +67,7 @@ export default function LoginPage() {
 
   function handleOAuthSignIn(provider: string) {
     setOauthLoading(provider);
-    signIn(provider, { callbackUrl: '/portal' });
+    signIn(provider, { callbackUrl: '/' });
   }
 
   return (

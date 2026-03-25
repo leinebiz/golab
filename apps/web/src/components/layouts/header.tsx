@@ -26,7 +26,7 @@ export function Header({ navItems, userName }: HeaderProps) {
         </button>
 
         {/* Logo (mobile only) */}
-        <Link href="/portal" className="lg:hidden ml-2 text-lg font-bold text-blue-600">
+        <Link href="/" className="lg:hidden ml-2 text-lg font-bold text-blue-600">
           GoLab
         </Link>
 
@@ -57,7 +57,7 @@ export function Header({ navItems, userName }: HeaderProps) {
           <div className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-950 z-50 shadow-xl">
             <div className="flex items-center h-16 px-4 border-b">
               <Link
-                href="/portal"
+                href="/"
                 className="text-xl font-bold text-blue-600"
                 onClick={() => setMobileMenuOpen(false)}
               >
