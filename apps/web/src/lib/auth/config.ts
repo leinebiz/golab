@@ -7,16 +7,22 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { LoginSchema } from '@golab/shared';
 
+const oauthEnabled = process.env.NEXT_PUBLIC_OAUTH_ENABLED === 'true';
+
 export const authConfig: NextAuthConfig = {
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-    MicrosoftEntraId({
-      clientId: process.env.MICROSOFT_CLIENT_ID,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-    }),
+    ...(oauthEnabled
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+          MicrosoftEntraId({
+            clientId: process.env.MICROSOFT_CLIENT_ID,
+            clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     Credentials({
       name: 'credentials',
       credentials: {
