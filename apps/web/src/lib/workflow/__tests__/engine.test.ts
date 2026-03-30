@@ -60,7 +60,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.request.findUniqueOrThrow).mockResolvedValue({
         id: 'req-1',
         status: 'DRAFT',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
       mockTx.request.updateMany.mockResolvedValue({ count: 1 });
       mockTx.statusTransition.create.mockResolvedValue({});
 
@@ -82,7 +83,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.subRequest.findUniqueOrThrow).mockResolvedValue({
         id: 'sub-1',
         status: 'PICKUP_REQUESTED',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
       mockTx.subRequest.updateMany.mockResolvedValue({ count: 1 });
       mockTx.statusTransition.create.mockResolvedValue({});
 
@@ -103,7 +105,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.request.findUniqueOrThrow).mockResolvedValue({
         id: 'req-1',
         status: 'DRAFT',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
       mockTx.request.updateMany.mockResolvedValue({ count: 1 });
       mockTx.statusTransition.create.mockResolvedValue({});
 
@@ -130,7 +133,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.request.findUniqueOrThrow).mockResolvedValue({
         id: 'req-1',
         status: 'DRAFT',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
       // Simulate another process already changed the status
       mockTx.request.updateMany.mockResolvedValue({ count: 0 });
 
@@ -148,7 +152,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.request.findUniqueOrThrow).mockResolvedValue({
         id: 'req-1',
         status: 'DRAFT',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       // DRAFT -> CLOSED is not a valid transition
       await expect(
@@ -165,7 +170,8 @@ describe('workflow engine', () => {
       vi.mocked(prisma.request.findUniqueOrThrow).mockResolvedValue({
         id: 'req-1',
         status: 'DRAFT',
-      } as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       // DRAFT -> QUOTE_CALCULATED requires SYSTEM role, not CUSTOMER_USER
       await expect(
