@@ -12,7 +12,7 @@ type TemplateFn = (data: TemplateData) => string;
 const templates: Partial<Record<NotificationEventType, TemplateFn>> = {
   'quote.ready': quoteReadyTemplate,
   'results.ready': certificateReleasedTemplate,
-  'certificate.available': certificateReleasedTemplate,
+  'certificate.awaiting_review': certificateReleasedTemplate,
   'payment.confirmed': paymentConfirmationTemplate,
   'credit.approved': creditDecisionTemplate,
   'credit.declined': creditDecisionTemplate,

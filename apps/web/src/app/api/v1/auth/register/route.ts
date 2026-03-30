@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { RegisterSchema } from '@golab/shared';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { checkRateLimit, rateLimitResponse } from '@/lib/security/rate-limiter';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const { allowed, resetAt } = checkRateLimit(ip, 'auth');
+  if (!allowed) return rateLimitResponse(resetAt);
+
   try {
     const body = await request.json();
     const parsed = RegisterSchema.safeParse(body);
@@ -70,6 +77,12 @@ export async function POST(request: Request) {
       return { user, organization };
     });
 
+    // Dispatch profile.created notification
+    dispatchNotification('profile.created', {
+      recipientUserIds: [result.user.id],
+      data: { organizationName: result.organization.name },
+    }).catch(() => {});
+
     return NextResponse.json(
       {
         message: 'Registration successful. Please check your email to verify your account.',
@@ -78,7 +91,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error({ error }, 'auth.register.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@golab/database';
+import { auth } from '@/lib/auth/config';
 
 /**
  * PUT /api/v1/notifications/[id]/read
@@ -9,10 +10,11 @@ import { prisma } from '@golab/database';
 export { PATCH as PUT };
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = request.headers.get('x-user-id');
-  if (!userId) {
+  const session = await auth();
+  if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const userId = session.user.id;
 
   const { id } = await params;
 

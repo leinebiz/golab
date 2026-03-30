@@ -1,5 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { prisma } from '@golab/database';
+import { logger } from '@/lib/observability/logger';
 import { redisConnectionOptions } from './redis';
 import type { NotificationChannel, NotificationJobPayload } from './types';
 import { sendWhatsAppMessage } from '../integrations/whatsapp/twilio-provider';
@@ -16,20 +17,36 @@ const defaultJobOptions = {
   removeOnFail: 5000,
 };
 
-const portalQueue = new Queue('notification-portal', {
-  connection: redisConnectionOptions,
-  defaultJobOptions,
-});
+// Lazy-initialised queues — avoids Redis connection during Next.js build
+let portalQueue: Queue | undefined;
+let emailQueue: Queue | undefined;
+let whatsappQueue: Queue | undefined;
 
-const emailQueue = new Queue('notification-email', {
-  connection: redisConnectionOptions,
-  defaultJobOptions,
-});
-
-const whatsappQueue = new Queue('notification-whatsapp', {
-  connection: redisConnectionOptions,
-  defaultJobOptions,
-});
+function getQueue(channel: NotificationChannel): Queue {
+  switch (channel) {
+    case 'PORTAL':
+      if (!portalQueue)
+        portalQueue = new Queue('notification-portal', {
+          connection: redisConnectionOptions,
+          defaultJobOptions,
+        });
+      return portalQueue;
+    case 'EMAIL':
+      if (!emailQueue)
+        emailQueue = new Queue('notification-email', {
+          connection: redisConnectionOptions,
+          defaultJobOptions,
+        });
+      return emailQueue;
+    case 'WHATSAPP':
+      if (!whatsappQueue)
+        whatsappQueue = new Queue('notification-whatsapp', {
+          connection: redisConnectionOptions,
+          defaultJobOptions,
+        });
+      return whatsappQueue;
+  }
+}
 
 /**
  * Enqueue a notification job for async delivery on the correct channel queue.
@@ -40,18 +57,7 @@ export async function enqueueNotificationJob(
   payload: NotificationJobPayload,
   jobId: string,
 ): Promise<void> {
-  const opts = { jobId };
-  switch (channel) {
-    case 'PORTAL':
-      await portalQueue.add(name, payload, opts);
-      break;
-    case 'EMAIL':
-      await emailQueue.add(name, payload, opts);
-      break;
-    case 'WHATSAPP':
-      await whatsappQueue.add(name, payload, opts);
-      break;
-  }
+  await getQueue(channel).add(name, payload, { jobId });
 }
 
 // ---------------------------------------------------------------------------
@@ -80,12 +86,33 @@ async function markFailed(notificationId: string, reason: string): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
+// Dead-letter logging — fires when all retries are exhausted
+// ---------------------------------------------------------------------------
+
+function attachDeadLetterHandler(worker: Worker): void {
+  worker.on('failed', (job, err) => {
+    if (job && job.attemptsMade >= (job.opts?.attempts ?? 3)) {
+      logger.error(
+        {
+          jobId: job.id,
+          jobName: job.name,
+          data: job.data,
+          error: err?.message,
+          attempts: job.attemptsMade,
+        },
+        'notification.permanently_failed',
+      );
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Workers
 // ---------------------------------------------------------------------------
 
 /** Portal worker: DB record already exists, just mark delivered. */
 export function createPortalWorker(): Worker<NotificationJobPayload, unknown, string> {
-  return new Worker<NotificationJobPayload, unknown, string>(
+  const worker = new Worker<NotificationJobPayload, unknown, string>(
     'notification-portal',
     async (job) => {
       await markSent(job.data.notificationId);
@@ -97,11 +124,13 @@ export function createPortalWorker(): Worker<NotificationJobPayload, unknown, st
       concurrency: 10,
     },
   );
+  attachDeadLetterHandler(worker);
+  return worker;
 }
 
 /** Email worker: sends via email provider, then updates status. */
 export function createEmailWorker(): Worker<NotificationJobPayload, unknown, string> {
-  return new Worker<NotificationJobPayload, unknown, string>(
+  const worker = new Worker<NotificationJobPayload, unknown, string>(
     'notification-email',
     async (job) => {
       try {
@@ -135,11 +164,13 @@ export function createEmailWorker(): Worker<NotificationJobPayload, unknown, str
       concurrency: 5,
     },
   );
+  attachDeadLetterHandler(worker);
+  return worker;
 }
 
 /** WhatsApp worker: sends via Twilio provider, then updates status. */
 export function createWhatsAppWorker(): Worker<NotificationJobPayload, unknown, string> {
-  return new Worker<NotificationJobPayload, unknown, string>(
+  const worker = new Worker<NotificationJobPayload, unknown, string>(
     'notification-whatsapp',
     async (job) => {
       try {
@@ -165,4 +196,6 @@ export function createWhatsAppWorker(): Worker<NotificationJobPayload, unknown, 
       concurrency: 3,
     },
   );
+  attachDeadLetterHandler(worker);
+  return worker;
 }

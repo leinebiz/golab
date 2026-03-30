@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from '@react-pdf/renderer';
+import { View, Text, StyleSheet, Svg, Rect, Circle, Path } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   header: {
@@ -15,20 +15,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  logoPlaceholder: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#2563EB',
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   companyName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E3A5F',
+  },
+  companyNameAccent: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2563EB',
@@ -58,6 +50,26 @@ const styles = StyleSheet.create({
   },
 });
 
+function LogoMark() {
+  return (
+    <Svg width={40} height={40} viewBox="0 0 52 52">
+      <Rect x="0" y="0" width="52" height="52" rx="10" fill="#2563EB" />
+      {/* Flask body */}
+      <Path
+        d="M18 10h16v8l6 16a4 4 0 01-3.8 5.2H15.8A4 4 0 0112 34l6-16v-8z"
+        fill="#ffffff"
+        opacity={0.95}
+      />
+      {/* Flask neck */}
+      <Rect x="21" y="10" width="10" height="4" rx="1" fill="#2563EB" />
+      {/* Bubbles */}
+      <Circle cx="24" cy="30" r="3" fill="#2563EB" opacity={0.6} />
+      <Circle cx="30" cy="26" r="2" fill="#3B82F6" opacity={0.5} />
+      <Circle cx="26" cy="34" r="1.5" fill="#60A5FA" opacity={0.7} />
+    </Svg>
+  );
+}
+
 interface GoLabHeaderProps {
   documentType: string;
   documentNumber?: string;
@@ -68,11 +80,12 @@ export function GoLabHeader({ documentType, documentNumber, date }: GoLabHeaderP
   return (
     <View style={styles.header}>
       <View style={styles.logoContainer}>
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>GL</Text>
-        </View>
+        <LogoMark />
         <View>
-          <Text style={styles.companyName}>GoLab</Text>
+          <View style={{ flexDirection: 'row' }}>
+            <Text style={styles.companyName}>Go</Text>
+            <Text style={styles.companyNameAccent}>Lab</Text>
+          </View>
           <Text style={styles.subtitle}>B2B Laboratory Testing Services</Text>
         </View>
       </View>

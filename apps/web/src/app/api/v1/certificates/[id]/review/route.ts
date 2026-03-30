@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/api/errors';
 import { createRequestLogger } from '@/lib/observability/logger';
 import { metrics } from '@/lib/observability/metrics';
 import { ReviewCertificateSchema } from '@golab/shared';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 /** Map review actions to sub-request target statuses */
 const ACTION_TO_STATUS: Record<string, string> = {
@@ -128,6 +129,48 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     metrics.certificateReviewed({ action });
     metrics.reviewDequeued({ entity: 'certificate' });
     reqLogger.info({ certificateId: id, action }, 'certificates.reviewed');
+
+    // Dispatch results.ready + customer.action_required if approved
+    if (isApproval) {
+      const fullRequest = await prisma.request.findUnique({
+        where: { id: certificate.subRequest.requestId },
+        select: { id: true, reference: true, organizationId: true },
+      });
+      if (fullRequest) {
+        const orgUsers = await prisma.user.findMany({
+          where: { organizationId: fullRequest.organizationId },
+          select: { id: true },
+        });
+        const recipientIds = orgUsers.map((u) => u.id);
+        const notifData = { requestRef: fullRequest.reference };
+
+        dispatchNotification('results.ready', {
+          recipientUserIds: recipientIds,
+          requestId: fullRequest.id,
+          subRequestId: certificate.subRequest.id,
+          data: notifData,
+        }).catch(() => {});
+
+        // Transition the master request to PENDING_CUSTOMER_ACTION and notify
+        try {
+          await executeTransition({
+            entityType: 'Request',
+            entityId: fullRequest.id,
+            targetStatus: 'PENDING_CUSTOMER_ACTION',
+            triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'system' },
+            reason: 'Results released — customer action required',
+          });
+        } catch {
+          // May already be in this state if multi-lab request
+        }
+
+        dispatchNotification('customer.action_required', {
+          recipientUserIds: recipientIds,
+          requestId: fullRequest.id,
+          data: notifData,
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ data: { id, action, status: targetStatus } });
   } catch (err) {

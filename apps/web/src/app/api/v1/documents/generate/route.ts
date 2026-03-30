@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import React from 'react';
 import { generatePdf, storePdf } from '@/lib/pdf/generator';
+import { requireRole } from '@/lib/auth/middleware';
 import { RequestForm, Quote, Invoice, Certificate } from '@golab/pdf-templates';
 import type {
   RequestFormData,
@@ -48,6 +49,8 @@ function buildS3Key(type: DocumentType, data: Record<string, unknown>): string {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER']);
+
     const body = (await request.json()) as GenerateRequest;
 
     if (!body.type || !body.data) {
@@ -68,7 +71,13 @@ export async function POST(request: NextRequest) {
     await storePdf(key, buffer);
 
     return NextResponse.json({ key, size: buffer.length }, { status: 201 });
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: 'Failed to generate document', details: message },

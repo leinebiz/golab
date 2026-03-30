@@ -8,6 +8,10 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Fail fast on missing required environment variables
+    const { validateEnvironment } = await import('@/lib/security/env-validation');
+    validateEnvironment();
+
     // Dynamic import so the OTel SDK is only loaded on the server
     await import('@/lib/observability/instrumentation');
   }

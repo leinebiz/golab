@@ -5,6 +5,8 @@
  * In production, calls the Twilio WhatsApp Business API.
  */
 
+import { fetchWithTimeout } from '@/lib/security/fetch-with-timeout';
+
 export interface WhatsAppMessage {
   to: string;
   templateName: string;
@@ -59,13 +61,14 @@ export async function sendWhatsAppMessage(message: WhatsAppMessage): Promise<Wha
       ContentVariables: JSON.stringify(message.variables),
     });
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: body.toString(),
+      timeoutMs: 15_000,
     });
 
     if (!response.ok) {

@@ -15,7 +15,7 @@ interface PortalShellProps {
 
 export function PortalShell({ children, navItems, role, userName }: PortalShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Desktop sidebar */}
       <Sidebar navItems={navItems} userName={userName} />
 

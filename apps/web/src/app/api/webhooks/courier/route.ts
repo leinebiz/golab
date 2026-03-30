@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
   const notifyStatus: Partial<Record<WaybillStatus, NotificationEventType>> = {
     COLLECTED: 'sample.collected',
     DELIVERED: 'sample.delivered',
+    BOOKED: 'collection.scheduled',
   };
   const eventType = notifyStatus[status];
   if (eventType) {

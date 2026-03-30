@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { CreateAddressSchema } from '@golab/shared';
+import { requireAuth } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 interface RouteContext {
   params: Promise<{ id: string; addressId: string }>;
@@ -8,6 +10,8 @@ interface RouteContext {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    await requireAuth();
+
     const { id, addressId } = await context.params;
     const body = await request.json();
     const parsed = CreateAddressSchema.partial().safeParse(body);
@@ -45,14 +49,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(address);
-  } catch (error) {
-    console.error('Failed to update address:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'address.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    await requireAuth();
+
     const { id, addressId } = await context.params;
 
     // Verify address belongs to this organization
@@ -67,8 +79,14 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     await prisma.address.delete({ where: { id: addressId } });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Failed to delete address:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'address.delete.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

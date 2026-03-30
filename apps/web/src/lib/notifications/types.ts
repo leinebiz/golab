@@ -5,22 +5,29 @@
 export type NotificationChannel = 'PORTAL' | 'EMAIL' | 'WHATSAPP';
 export type NotificationStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED';
 
-/** All notification event types in the system */
+/** All notification event types in the system — 19 per business requirements */
 export type NotificationEventType =
-  | 'quote.ready'
-  | 'quote.accepted'
-  | 'invoice.generated'
-  | 'payment.confirmed'
+  | 'profile.created'
+  | 'credit.submitted'
   | 'credit.approved'
   | 'credit.declined'
+  | 'quote.ready'
+  | 'quote.accepted'
+  | 'payment_link.issued'
+  | 'payment.confirmed'
+  | 'invoice.generated'
+  | 'collection.scheduled'
+  | 'waybill.available'
   | 'sample.collected'
   | 'sample.delivered'
+  | 'lab.accepted_sample'
   | 'sample.exception'
-  | 'testing.started'
+  | 'testing.delayed'
   | 'testing.completed'
+  | 'certificate.awaiting_review'
   | 'results.ready'
-  | 'certificate.available'
-  | 'request.status_changed';
+  | 'customer.action_required'
+  | 'request.closed';
 
 /** Context passed to the dispatcher for fan-out */
 export interface NotificationContext {

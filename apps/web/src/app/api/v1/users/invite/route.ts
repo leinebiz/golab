@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { InviteUserSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Failed to invite user:', error);
+    logger.error({ error }, 'users.invite.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

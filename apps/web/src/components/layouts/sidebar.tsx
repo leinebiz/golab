@@ -24,12 +24,15 @@ import {
   Receipt,
   Banknote,
   Building,
+  Mail,
+  Shield,
   ChevronLeft,
   ChevronRight,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type NavItem } from '@golab/shared';
+import { GoLabLogo } from '@/components/ui/golab-logo';
 import { useState } from 'react';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -54,6 +57,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Receipt,
   Banknote,
   Building,
+  Mail,
+  Shield,
 };
 
 interface SidebarProps {
@@ -68,45 +73,60 @@ export function Sidebar({ navItems, userName }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'hidden lg:flex flex-col border-r bg-white dark:bg-gray-950 transition-all duration-200',
+        'hidden lg:flex flex-col bg-slate-900 text-white transition-all duration-200',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b">
+      <div className="flex items-center h-16 px-4 border-b border-slate-700/50">
         {!collapsed && (
-          <Link href="/" className="text-xl font-bold text-blue-600">
-            GoLab
+          <Link href="/" className="flex items-center gap-2">
+            <GoLabLogo size="sm" />
+            <span className="text-lg font-semibold tracking-tight">GoLab</span>
           </Link>
+        )}
+        {collapsed && (
+          <div className="mx-auto">
+            <GoLabLogo size="sm" />
+          </div>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className={cn('p-1.5 rounded-md hover:bg-gray-100', collapsed ? 'mx-auto' : 'ml-auto')}
+          className={cn(
+            'p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors',
+            collapsed ? 'mx-auto mt-2' : 'ml-auto',
+          )}
         >
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-1 px-2">
+        <ul className="space-y-0.5 px-2">
           {navItems.map((item) => {
             const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/admin' &&
+                item.href !== '/customer' &&
+                item.href !== '/lab' &&
+                item.href !== '/finance' &&
+                pathname.startsWith(item.href + '/'));
 
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                     isActive
-                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800',
                   )}
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400'} />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               </li>
@@ -117,10 +137,17 @@ export function Sidebar({ navItems, userName }: SidebarProps) {
 
       {/* User */}
       {userName && !collapsed && (
-        <div className="border-t p-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-            {userName}
-          </p>
+        <div className="border-t border-slate-700/50 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-xs font-medium text-slate-200">
+              {userName
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)}
+            </div>
+            <p className="text-sm font-medium text-slate-200 truncate">{userName}</p>
+          </div>
         </div>
       )}
     </aside>

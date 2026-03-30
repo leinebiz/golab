@@ -7,13 +7,17 @@ import { handleApiError } from '@/lib/api/errors';
 import { logger } from '@/lib/observability/logger';
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION ?? 'af-south-1',
-  ...(process.env.AWS_ENDPOINT_URL
-    ? { endpoint: process.env.AWS_ENDPOINT_URL, forcePathStyle: true }
-    : {}),
+  region: process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
+  endpoint: process.env.S3_ENDPOINT ?? process.env.AWS_ENDPOINT_URL,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY ?? '',
+    secretAccessKey: process.env.S3_SECRET_KEY ?? '',
+  },
 });
 
-const BUCKET_NAME = process.env.CERTIFICATES_BUCKET ?? 'golab-certificates';
+const BUCKET_NAME =
+  process.env.CERTIFICATES_BUCKET ?? process.env.S3_BUCKET ?? 'golab-certificates';
 const SIGNED_URL_EXPIRES_SECONDS = 300; // 5 minutes
 
 /**
@@ -58,14 +62,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     logger.info({ certificateId: id }, 'certificate.download.requested');
 
-    return NextResponse.json({
-      data: {
-        url: signedUrl,
-        fileName: certificate.fileName,
-        mimeType: certificate.mimeType,
-        expiresInSeconds: SIGNED_URL_EXPIRES_SECONDS,
-      },
-    });
+    // Redirect to the pre-signed S3 URL so <a href> links work directly
+    return NextResponse.redirect(signedUrl);
   } catch (err) {
     return handleApiError(err, 'certificates.download.failed');
   }

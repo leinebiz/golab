@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '@/lib/security/fetch-with-timeout';
 import { getEmailTemplate } from './templates';
 import type { NotificationEventType } from './types';
 
@@ -32,7 +33,7 @@ export async function sendNotificationEmail(params: SendEmailParams): Promise<Se
   }
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       process.env.EMAIL_PROVIDER_URL ?? 'https://api.sendgrid.com/v3/mail/send',
       {
         method: 'POST',
@@ -49,6 +50,7 @@ export async function sendNotificationEmail(params: SendEmailParams): Promise<Se
           subject,
           content: [{ type: 'text/html', value: html }],
         }),
+        timeoutMs: 15_000,
       },
     );
 

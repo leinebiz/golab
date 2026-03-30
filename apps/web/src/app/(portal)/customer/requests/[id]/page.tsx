@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Phone, RefreshCw, CheckCircle, XCircle, Download, Send } from 'lucide-react';
+import {
+  ChevronRight,
+  Phone,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Download,
+  Send,
+  AlertTriangle,
+} from 'lucide-react';
 import { ProgressBar } from '@/components/request/progress-bar';
 import { StatusBadge } from '@/components/request/status-badge';
 import { StatusTimeline } from '@/components/request/status-timeline';
@@ -163,7 +172,9 @@ export default function RequestDetailPage() {
         actionLoading={actionLoading}
         onAccept={() => handleAction('accept')}
         onReject={() => handleAction('reject', { reason: 'Customer declined' })}
-        onClose={() => router.push('/customer/requests')}
+        onCustomerAction={(action: string, notes?: string) =>
+          handleAction('customer-action', { action, notes })
+        }
       />
 
       {/* Quote summary */}
@@ -250,7 +261,7 @@ interface CustomerActionsProps {
   actionLoading: boolean;
   onAccept: () => void;
   onReject: () => void;
-  onClose: () => void;
+  onCustomerAction: (action: string, notes?: string) => void;
 }
 
 function CustomerActions({
@@ -258,7 +269,7 @@ function CustomerActions({
   actionLoading,
   onAccept,
   onReject,
-  onClose,
+  onCustomerAction,
 }: CustomerActionsProps) {
   if (status === 'PENDING_CUSTOMER_REVIEW') {
     return (
@@ -296,7 +307,7 @@ function CustomerActions({
         </div>
         <button
           disabled={actionLoading}
-          onClick={onClose}
+          onClick={() => onCustomerAction('ACCEPT_AND_CLOSE')}
           className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
         >
           <CheckCircle className="h-4 w-4" />
@@ -304,6 +315,7 @@ function CustomerActions({
         </button>
         <button
           disabled={actionLoading}
+          onClick={() => onCustomerAction('REQUEST_CALLBACK')}
           className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
           <Phone className="h-4 w-4" />
@@ -311,6 +323,7 @@ function CustomerActions({
         </button>
         <button
           disabled={actionLoading}
+          onClick={() => onCustomerAction('RETEST')}
           className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
           <RefreshCw className="h-4 w-4" />
@@ -318,10 +331,19 @@ function CustomerActions({
         </button>
         <button
           disabled={actionLoading}
+          onClick={() => onCustomerAction('SEND_TO_ANOTHER_LAB')}
           className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
         >
           <Send className="h-4 w-4" />
           Send to Another Lab
+        </button>
+        <button
+          disabled={actionLoading}
+          onClick={() => onCustomerAction('DISPUTE')}
+          className="inline-flex items-center gap-2 rounded-md border border-orange-300 px-4 py-2 text-sm font-medium text-orange-600 hover:bg-orange-50 disabled:opacity-50"
+        >
+          <AlertTriangle className="h-4 w-4" />
+          Dispute Result
         </button>
       </div>
     );

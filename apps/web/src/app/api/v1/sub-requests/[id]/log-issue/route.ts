@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { LogSampleIssueSchema } from '@golab/shared';
 import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'LAB_ADMIN', 'LAB_TECHNICIAN']);
+
     const { id } = await params;
     const body = await request.json();
 
@@ -85,8 +89,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    console.error('Failed to log sample issue:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'subrequest.log_issue.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

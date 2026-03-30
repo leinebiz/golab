@@ -16,34 +16,41 @@ export function Header({ navItems, userName }: HeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex items-center h-16 px-4 border-b bg-white dark:bg-gray-950">
+      <header className="sticky top-0 z-40 flex items-center h-14 px-4 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
         {/* Mobile hamburger */}
         <button
-          className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+          className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           <Menu size={20} />
         </button>
 
         {/* Logo (mobile only) */}
-        <Link href="/" className="lg:hidden ml-2 text-lg font-bold text-blue-600">
-          GoLab
+        <Link href="/" className="lg:hidden ml-2 flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-xs font-bold text-white">
+            GL
+          </div>
+          <span className="text-base font-semibold text-slate-900">GoLab</span>
         </Link>
 
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* Notifications */}
-        <button className="p-2 rounded-md hover:bg-gray-100 relative">
-          <Bell size={20} />
+        <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors relative">
+          <Bell size={18} />
         </button>
 
         {/* User avatar */}
-        <div className="ml-2 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <User size={16} className="text-blue-600" />
+        <div className="ml-1 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-xs font-medium text-white">
+            {userName
+              ?.split(' ')
+              .map((n) => n[0])
+              .join('')
+              .slice(0, 2) ?? 'U'}
           </div>
-          <span className="hidden md:block text-sm font-medium">{userName}</span>
+          <span className="hidden md:block text-sm font-medium text-slate-700">{userName}</span>
         </div>
       </header>
 

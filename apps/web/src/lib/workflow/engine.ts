@@ -1,5 +1,6 @@
 import { prisma } from '@golab/database';
 import { logger } from '../observability/logger';
+import { logAuditActivity } from '../audit/prisma-audit-middleware';
 import {
   type TransitionContext,
   REQUEST_TRANSITIONS,
@@ -65,20 +66,27 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     }
   }
 
-  // Perform the transition in a transaction
+  // Perform the transition in a transaction with optimistic locking
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await prisma.$transaction(async (tx: any) => {
-    // Update status
+    // Optimistic lock: only update if status is still what we expect
+    let updated: { count: number };
     if (entityType === 'Request') {
-      await tx.request.update({
-        where: { id: entityId },
+      updated = await tx.request.updateMany({
+        where: { id: entityId, status: currentStatus },
         data: { status: targetStatus },
       });
     } else {
-      await tx.subRequest.update({
-        where: { id: entityId },
+      updated = await tx.subRequest.updateMany({
+        where: { id: entityId, status: currentStatus },
         data: { status: targetStatus },
       });
+    }
+
+    if (updated.count === 0) {
+      throw new Error(
+        `Concurrent modification detected: ${entityType} ${entityId} is no longer in status ${currentStatus}`,
+      );
     }
 
     // Record transition
@@ -94,7 +102,7 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     });
   });
 
-  // Execute onTransition callback (non-blocking)
+  // Execute onTransition callback (non-blocking, with error logging)
   if (transition.onTransition) {
     transition.onTransition(context).catch((err) => {
       logger.error(
@@ -114,4 +122,15 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     },
     'workflow.transition',
   );
+
+  // Audit log
+  logAuditActivity({
+    action: `${entityType.toLowerCase()}.status_change`,
+    entityType,
+    entityId,
+    actorId: triggeredBy.userId === 'system' ? null : triggeredBy.userId,
+    actorType: triggeredBy.type,
+    changes: { status: { old: currentStatus, new: targetStatus } },
+    metadata: { reason, ...metadata },
+  }).catch(() => {}); // fire-and-forget
 }

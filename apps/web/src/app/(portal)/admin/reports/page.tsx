@@ -127,10 +127,24 @@ export default function ReportsPage() {
               <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => handleExport('requests')}>
-            <Download className="mr-1 h-4 w-4" />
-            Export
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => handleExport('requests')}>
+              <Download className="mr-1 h-4 w-4" />
+              Requests
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('finance')}>
+              <Download className="mr-1 h-4 w-4" />
+              Finance
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('labs')}>
+              <Download className="mr-1 h-4 w-4" />
+              Labs
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleExport('exceptions')}>
+              <Download className="mr-1 h-4 w-4" />
+              Exceptions
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -138,9 +152,9 @@ export default function ReportsPage() {
         <div className="flex items-center justify-center py-20 text-gray-400">Loading...</div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* Core KPI Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {kpis.map((kpi) => (
+            {kpis.slice(0, 5).map((kpi) => (
               <KpiCard
                 key={kpi.key}
                 label={kpi.label}
@@ -150,6 +164,21 @@ export default function ReportsPage() {
               />
             ))}
           </div>
+
+          {/* Extended KPI Cards */}
+          {kpis.length > 5 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+              {kpis.slice(5).map((kpi) => (
+                <KpiCard
+                  key={kpi.key}
+                  label={kpi.label}
+                  value={kpi.value}
+                  trend={kpi.trend}
+                  changePercent={kpi.changePercent}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Charts Row 1 */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

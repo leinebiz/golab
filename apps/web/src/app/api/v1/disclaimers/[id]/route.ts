@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth, requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +9,7 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    await requireAuth();
     const { id } = await context.params;
 
     const disclaimer = await prisma.disclaimer.findUnique({
@@ -25,14 +28,21 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json(disclaimer);
-  } catch (error) {
-    console.error('Failed to fetch disclaimer:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'disclaimers.fetch.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    await requireRole(['GOLAB_ADMIN']);
     const { id } = await context.params;
     const body = await request.json();
     const { title, content, isActive } = body;
@@ -60,8 +70,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error('Failed to update disclaimer:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'disclaimers.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

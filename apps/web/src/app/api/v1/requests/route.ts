@@ -234,8 +234,16 @@ export async function POST(req: NextRequest) {
         .replace(/[^A-Za-z0-9]/g, '')
         .slice(0, 8)
         .toUpperCase() || 'CUST';
-    const seqCount = await prisma.request.count({ where: { organizationId } });
-    const quote = calculateQuote(quoteLabGroups, parsed.data.turnaroundType, orgCode, seqCount + 1);
+    // Use max sequence + 1 to avoid race condition with count()
+    const lastRequest = await prisma.request.findFirst({
+      where: { organizationId },
+      orderBy: { createdAt: 'desc' },
+      select: { reference: true },
+    });
+    const lastSeq = lastRequest?.reference
+      ? parseInt(lastRequest.reference.replace(/^.*-(\d+)$/, '$1')) || 0
+      : 0;
+    const quote = calculateQuote(quoteLabGroups, parsed.data.turnaroundType, orgCode, lastSeq + 1);
 
     // Create everything in a transaction
     const expiresAt = new Date();
