@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
-        where: { id: auditLog.entityId },
+        where: { id: auditLog.entityId! },
         data: { emailVerified: new Date() },
       });
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: 'Email verified successfully' });
   } catch (error) {
-    console.error('Email verification error:', error);
+    logger.error({ error }, 'auth.verify_email.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

@@ -1,7 +1,22 @@
+---
+css: |-
+  h1, h2, h3, h4 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+---
+
 # GoLab MVP — Development Proposal
 
-**Date:** 26 March 2026
-**Prepared by:** Christoph Leinemann
+**Date:** 27 March 2026
 
 ---
 
@@ -15,10 +30,10 @@ The goal is for you to test it extensively, confirm the workflow works for your 
 
 ## Agreement Summary
 
-|                                      |              |
-| ------------------------------------ | ------------ |
-| **MVP**                              | $6,000 USD   |
-| **Post-handover support (6 months)** | $350 / month |
+|                                                      |              |
+| ---------------------------------------------------- | ------------ |
+| **MVP**                                              | $6,000 USD   |
+| **Post-handover support (optional, up to 6 months)** | $350 / month |
 
 ### MVP — $6,000
 
@@ -51,7 +66,9 @@ Delivered as a single deployment on AWS for testing and evaluation. Covers:
 
 Moving to a full production setup (separate dev/staging/production environments, automated backups, monitoring, scaling) would be part of a follow-on engagement if you decide to proceed.
 
-### Post-Handover Support — $350/month for 6 months
+### Post-Handover Support — $350/month (up to 6 months)
+
+Optional. Starts after MVP handover if you choose to continue. Can be cancelled at any time — upon cancellation, hosting is shut down and no further costs are incurred.
 
 Covers:
 
@@ -126,11 +143,11 @@ This is the one area where the system won't be fully automated without the couri
 
 ## Timeline
 
-| When                     | Deliverable                                                                 |
-| ------------------------ | --------------------------------------------------------------------------- |
-| **Mid May**              | First cut — core workflow available for initial review and feedback         |
-| **Mid May – Early June** | 3 weeks of testing, feedback, and adjustments                               |
-| **Early June**           | MVP complete — all features listed above, deployed and ready for evaluation |
+| When                     | Deliverable                                                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Mid May**              | First cut — core workflow available for initial review and feedback                                                               |
+| **Mid May – Early June** | 3 weeks of testing, feedback, and adjustments                                                                                     |
+| **Early June**           | MVP complete — $6,000 payment due. At this point you can either conclude the engagement or transition into post-handover support. |
 
 ---
 

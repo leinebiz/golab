@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'LAB_ADMIN', 'LAB_TECHNICIAN']);
+
     const { id } = await params;
 
     const subRequest = await prisma.subRequest.findUnique({
@@ -86,9 +91,46 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return certificate;
     });
 
+    // Dispatch notifications: testing.completed + certificate.awaiting_review
+    const subReq = await prisma.subRequest.findUnique({
+      where: { id },
+      include: { request: { select: { id: true, reference: true, organizationId: true } } },
+    });
+    if (subReq) {
+      // Notify customer that testing is complete
+      const orgUsers = await prisma.user.findMany({
+        where: { organizationId: subReq.request.organizationId },
+        select: { id: true },
+      });
+      dispatchNotification('testing.completed', {
+        recipientUserIds: orgUsers.map((u) => u.id),
+        requestId: subReq.request.id,
+        subRequestId: id,
+        data: { requestRef: subReq.request.reference },
+      }).catch(() => {});
+
+      // Notify GoLab reviewers that certificate is awaiting review
+      const golabReviewers = await prisma.user.findMany({
+        where: { role: { in: ['GOLAB_ADMIN', 'GOLAB_REVIEWER'] } },
+        select: { id: true },
+      });
+      dispatchNotification('certificate.awaiting_review', {
+        recipientUserIds: golabReviewers.map((u) => u.id),
+        requestId: subReq.request.id,
+        subRequestId: id,
+        data: { requestRef: subReq.request.reference },
+      }).catch(() => {});
+    }
+
     return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    console.error('Failed to upload certificate:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'subrequest.certificate.upload.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,9 +1,63 @@
 services:
+  # ── GoLab Web Application ────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3100:3000'
+    environment:
+      DATABASE_URL: postgresql://golab:golab_dev@postgres:5432/golab_dev
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: golab-dev
+      S3_REGION: us-east-1
+      NEXTAUTH_URL: http://localhost:3100
+      AUTH_TRUST_HOST: 'true'
+      NEXTAUTH_SECRET: change-me-to-a-random-secret-in-production
+      STRIPE_SECRET_KEY: sk_test_dummy
+      STRIPE_PUBLISHABLE_KEY: pk_test_dummy
+      STRIPE_WEBHOOK_SECRET: whsec_dummy
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: golab-portal
+      LOG_LEVEL: info
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+      NODE_ENV: production
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ── Database Migration & Seed ────────────────────────
+  db-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        cd /app
+        pnpm --filter @golab/database exec prisma db push --schema=prisma/schema.prisma
+        pnpm --filter @golab/database exec tsx prisma/seed.ts
+    environment:
+      DATABASE_URL: postgresql://golab:golab_dev@postgres:5432/golab_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # ── Database ───────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - '5433:5432'
     environment:
       POSTGRES_USER: golab
       POSTGRES_PASSWORD: golab_dev
@@ -12,7 +66,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U golab -d golab_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U golab -d golab_dev']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,11 +75,11 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,8 +88,8 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9010:9000'
+      - '9011:9001'
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -59,21 +113,21 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - '4317:4317'
+      - '4318:4318'
     volumes:
       - ./docker/otel-collector-config.yml:/etc/otelcol/config.yaml
 
   jaeger:
     image: jaegertracing/jaeger:latest
     ports:
-      - "16686:16686"
-      - "14268:14268"
+      - '16686:16686'
+      - '14268:14268'
 
   prometheus:
     image: prom/prometheus:latest
     ports:
-      - "9090:9090"
+      - '9091:9090'
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -81,10 +135,10 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3001:3000"
+      - '3003:3000'
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
     volumes:
       - grafana_data:/var/lib/grafana
       - ./docker/grafana/provisioning:/etc/grafana/provisioning
@@ -93,8 +147,9 @@ services:
   # ── Queue Dashboard ────────────────────────────────
   bull-board:
     image: deadly0/bull-board:latest
+    # Bind to localhost only — in production, put behind an authenticated reverse proxy
     ports:
-      - "3002:3000"
+      - '127.0.0.1:3002:3000'
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -103,8 +158,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - '8025:8025'
+      - '1025:1025'
 
 volumes:
   postgres_data:

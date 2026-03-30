@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { prisma } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/observability/logger';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 interface CreditApplicationResult {
   success: boolean;
@@ -99,6 +100,20 @@ export async function submitCreditApplication(
   });
 
   revalidatePath('/customer/finances');
+
+  // Notify GoLab admin users about new credit application
+  const golabUsers = await prisma.user.findMany({
+    where: { role: { in: ['GOLAB_ADMIN', 'GOLAB_FINANCE'] } },
+    select: { id: true },
+  });
+  const org = await prisma.organization.findUnique({
+    where: { id: user.organizationId },
+    select: { name: true },
+  });
+  dispatchNotification('credit.submitted', {
+    recipientUserIds: [user.id, ...golabUsers.map((u) => u.id)],
+    data: { organizationName: org?.name ?? 'Unknown' },
+  }).catch(() => {});
 
   logger.info(
     { organizationId: user.organizationId, userId: user.id },

@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/db';
 import { ForgotPasswordSchema } from '@golab/shared';
+import { checkRateLimit, rateLimitResponse } from '@/lib/security/rate-limiter';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const { allowed, resetAt } = checkRateLimit(ip, 'auth');
+  if (!allowed) return rateLimitResponse(resetAt);
+
   try {
     const body = await request.json();
     const parsed = ForgotPasswordSchema.safeParse(body);
@@ -49,7 +55,7 @@ export async function POST(request: Request) {
 
     return successResponse;
   } catch (error) {
-    console.error('Forgot password error:', error);
+    logger.error({ error }, 'auth.forgot_password.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

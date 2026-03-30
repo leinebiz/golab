@@ -198,6 +198,10 @@ model User {
   sessions       Session[]
   auditLogs      AuditLog[]    @relation("AuditActor")
   notifications  Notification[]
+  editedTemplates NotificationTemplate[] @relation("TemplateEditor")
+  sentMessages     AdminMessage[]  @relation("MessageSender")
+  receivedMessages AdminMessage[]  @relation("MessageRecipient")
+  inboundMessages  InboundMessage[] @relation("InboundMessageSender")
 
   preferredChannel NotificationChannel @default(EMAIL)
   whatsappNumber   String?
@@ -253,6 +257,8 @@ model Organization {
   creditAccount          CreditAccount?
   defaultTolerances      DefaultTolerance[]
   requests               Request[]
+  adminMessages          AdminMessage[]
+  inboundMessages        InboundMessage[] @relation("InboundMessages")
   disclaimerAcceptances  DisclaimerAcceptance[]
   laboratories           Laboratory[]
 
@@ -273,7 +279,7 @@ model Organization {
 model Address {
   id             String      @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   type           AddressType
   line1          String
   line2          String?
@@ -311,6 +317,8 @@ model CreditAccount {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 // ============================================================
@@ -438,6 +446,8 @@ model Request {
   invoice           Invoice?
   statusTransitions StatusTransition[]
   notifications     Notification[]
+  adminMessages     AdminMessage[]
+  inboundMessages   InboundMessage[] @relation("InboundMessages")
 
   customerAction      CustomerAction?
   customerActionDate  DateTime?
@@ -452,15 +462,17 @@ model Request {
   @@index([status])
   @@index([reference])
   @@index([createdAt])
+  @@index([acceptedAt])
+  @@index([closedAt])
 }
 
 model SubRequest {
   id           String           @id @default(cuid())
   subReference String           @unique
   requestId    String
-  request      Request          @relation(fields: [requestId], references: [id])
+  request      Request          @relation(fields: [requestId], references: [id], onDelete: Cascade)
   laboratoryId String
-  laboratory   Laboratory       @relation(fields: [laboratoryId], references: [id])
+  laboratory   Laboratory       @relation(fields: [laboratoryId], references: [id], onDelete: Restrict)
   status       SubRequestStatus @default(PICKUP_REQUESTED)
 
   labAcceptedAt      DateTime?
@@ -483,14 +495,15 @@ model SubRequest {
   @@index([requestId])
   @@index([laboratoryId])
   @@index([status])
+  @@index([expectedCompletionAt])
 }
 
 model SubRequestTest {
   id                    String        @id @default(cuid())
   subRequestId          String
-  subRequest            SubRequest    @relation(fields: [subRequestId], references: [id])
+  subRequest            SubRequest    @relation(fields: [subRequestId], references: [id], onDelete: Cascade)
   testCatalogueId       String
-  testCatalogue         TestCatalogue @relation(fields: [testCatalogueId], references: [id])
+  testCatalogue         TestCatalogue @relation(fields: [testCatalogueId], references: [id], onDelete: Restrict)
   sampleCount           Int
   accreditationRequired Boolean       @default(false)
   unitPrice             Decimal       @db.Decimal(10, 2)
@@ -510,7 +523,7 @@ model SubRequestTest {
 model Quote {
   id                String  @id @default(cuid())
   requestId         String  @unique
-  request           Request @relation(fields: [requestId], references: [id])
+  request           Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
   quoteNumber       String  @unique
   subtotal          Decimal @db.Decimal(12, 2)
   expediteSurcharge Decimal @db.Decimal(12, 2) @default(0)
@@ -533,7 +546,7 @@ model Quote {
 model Invoice {
   id            String        @id @default(cuid())
   requestId     String        @unique
-  request       Request       @relation(fields: [requestId], references: [id])
+  request       Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
   invoiceNumber String        @unique
   status        InvoiceStatus @default(DRAFT)
   subtotal      Decimal       @db.Decimal(12, 2)
@@ -562,7 +575,7 @@ model Invoice {
 model Payment {
   id                String        @id @default(cuid())
   invoiceId         String
-  invoice           Invoice       @relation(fields: [invoiceId], references: [id])
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   amount            Decimal       @db.Decimal(12, 2)
   currency          String        @default("ZAR")
   status            PaymentStatus @default(PENDING)
@@ -576,6 +589,7 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   @@index([invoiceId])
+  @@index([invoiceId, status])
   @@index([providerPaymentId])
 }
 
@@ -586,7 +600,7 @@ model Payment {
 model Waybill {
   id               String       @id @default(cuid())
   subRequestId     String       @unique
-  subRequest       SubRequest   @relation(fields: [subRequestId], references: [id])
+  subRequest       SubRequest   @relation(fields: [subRequestId], references: [id], onDelete: Cascade)
   waybillNumber    String       @unique
   courierProvider  String
   courierBookingId String?
@@ -614,7 +628,7 @@ model Waybill {
 model Certificate {
   id           String            @id @default(cuid())
   subRequestId String
-  subRequest   SubRequest        @relation(fields: [subRequestId], references: [id])
+  subRequest   SubRequest        @relation(fields: [subRequestId], references: [id], onDelete: Cascade)
   uploadedById String
   format       CertificateFormat
   version      Int               @default(1)
@@ -643,7 +657,7 @@ model Certificate {
 model SampleIssue {
   id           String          @id @default(cuid())
   subRequestId String
-  subRequest   SubRequest      @relation(fields: [subRequestId], references: [id])
+  subRequest   SubRequest      @relation(fields: [subRequestId], references: [id], onDelete: Cascade)
   reportedById String
   issueType    SampleIssueType
   comments     String
@@ -680,9 +694,9 @@ model Disclaimer {
 model DisclaimerAcceptance {
   id             String       @id @default(cuid())
   disclaimerId   String
-  disclaimer     Disclaimer   @relation(fields: [disclaimerId], references: [id])
+  disclaimer     Disclaimer   @relation(fields: [disclaimerId], references: [id], onDelete: Cascade)
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   acceptedById   String
   acceptedAt     DateTime     @default(now())
   ipAddress      String?
@@ -698,11 +712,11 @@ model DisclaimerAcceptance {
 model Notification {
   id           String              @id @default(cuid())
   userId       String
-  user         User                @relation(fields: [userId], references: [id])
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   requestId    String?
-  request      Request?            @relation(fields: [requestId], references: [id])
+  request      Request?            @relation(fields: [requestId], references: [id], onDelete: SetNull)
   subRequestId String?
-  subRequest   SubRequest?         @relation(fields: [subRequestId], references: [id])
+  subRequest   SubRequest?         @relation(fields: [subRequestId], references: [id], onDelete: SetNull)
 
   channel  NotificationChannel
   status   NotificationStatus  @default(PENDING)
@@ -724,25 +738,165 @@ model Notification {
 }
 
 // ============================================================
+// NOTIFICATION TEMPLATES (admin-editable)
+// ============================================================
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  eventType String              // e.g. 'quote.ready', 'payment.confirmed'
+  channel   NotificationChannel // PORTAL, EMAIL, WHATSAPP
+
+  subject   String              // Title / subject line — supports {{placeholders}}
+  body      String              @db.Text // Body template — supports {{placeholders}}
+  isActive  Boolean             @default(true)
+
+  updatedById String?
+  updatedBy   User?   @relation("TemplateEditor", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventType, channel])
+  @@index([eventType])
+}
+
+// ============================================================
+// ADMIN MESSAGES (composable from central comms hub)
+// ============================================================
+
+model AdminMessage {
+  id             String              @id @default(cuid())
+  organizationId String?
+  organization   Organization?       @relation(fields: [organizationId], references: [id])
+  requestId      String?
+  request        Request?            @relation(fields: [requestId], references: [id])
+  recipientId    String?             // Specific user recipient (null = all org users)
+  recipient      User?               @relation("MessageRecipient", fields: [recipientId], references: [id])
+  sentById       String
+  sentBy         User                @relation("MessageSender", fields: [sentById], references: [id])
+
+  channel        NotificationChannel @default(EMAIL)
+  subject        String
+  body           String              @db.Text
+  status         MessageStatus       @default(DRAFT)
+
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  failureReason  String?
+
+  // For resend tracking
+  parentMessageId String?
+  parentMessage   AdminMessage?  @relation("MessageResend", fields: [parentMessageId], references: [id])
+  resends         AdminMessage[] @relation("MessageResend")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([sentById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum MessageStatus {
+  DRAFT
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+// ============================================================
+// INBOUND MESSAGES (replies from customers via any channel)
+// ============================================================
+
+model InboundMessage {
+  id              String              @id @default(cuid())
+  channel         NotificationChannel // EMAIL, WHATSAPP, PORTAL
+
+  // Sender identification
+  fromAddress     String              // Email address, WhatsApp number, or user ID
+  fromName        String?
+  userId          String?             // Resolved GoLab user (if matched)
+  user            User?               @relation("InboundMessageSender", fields: [userId], references: [id])
+  organizationId  String?             // Resolved org (if matched)
+  organization    Organization?       @relation("InboundMessages", fields: [organizationId], references: [id])
+
+  // Message content
+  subject         String?
+  body            String              @db.Text
+  bodyHtml        String?             @db.Text
+
+  // Threading
+  threadId        String?             // Groups related messages into conversations
+  inReplyTo       String?             // Provider message ID this is a reply to
+  references      String?             // Chain of provider message IDs (email References header)
+  relatedMessageId String?            // Links to the AdminMessage or Notification this replies to
+  requestId       String?             // Linked request (if determinable from context)
+  request         Request?            @relation("InboundMessages", fields: [requestId], references: [id])
+
+  // Provider metadata
+  providerMessageId String?  @unique  // Resend email ID, Twilio message SID, etc.
+  providerPayload   Json?             // Raw webhook payload for debugging
+
+  // Status
+  status          InboundMessageStatus @default(UNREAD)
+  isStarred       Boolean             @default(false)
+
+  // Attachments
+  attachmentCount Int                 @default(0)
+  attachmentMeta  Json?               // [{name, size, contentType, key}]
+
+  readAt          DateTime?
+  repliedAt       DateTime?
+  archivedAt      DateTime?
+
+  createdAt       DateTime            @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([threadId])
+  @@index([status])
+  @@index([channel, createdAt])
+  @@index([fromAddress])
+}
+
+enum InboundMessageStatus {
+  UNREAD
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+// ============================================================
 // AUDIT TRAIL
 // ============================================================
 
 model AuditLog {
-  id         String  @id @default(cuid())
-  actorId    String?
-  actor      User?   @relation("AuditActor", fields: [actorId], references: [id])
-  actorType  String  @default("user")
-  action     String
-  entityType String
-  entityId   String
-  changes    Json?
-  metadata   Json?
+  id          String  @id @default(cuid())
+  actorId     String?
+  actor       User?   @relation("AuditActor", fields: [actorId], references: [id])
+  actorName   String?
+  actorEmail  String?
+  actorType   String  @default("user") // user, system, webhook, cron
+  action      String  // e.g. "request.create", "login.success", "comms.send"
+  category    String  @default("data") // auth, data, comms, workflow, finance, system
+  entityType  String  // e.g. "Request", "User", "AdminMessage"
+  entityId    String?
+  entityLabel String? // Human-readable label e.g. "REQ-00042"
+  changes     Json?   // { field: { old, new } }
+  metadata    Json?   // Extra context (IP, user agent, etc.)
+  ipAddress   String?
+  userAgent   String?
 
   createdAt DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([actorId])
+  @@index([actorEmail])
   @@index([action])
+  @@index([category])
   @@index([createdAt])
 }
 
@@ -753,9 +907,9 @@ model AuditLog {
 model StatusTransition {
   id           String      @id @default(cuid())
   requestId    String?
-  request      Request?    @relation(fields: [requestId], references: [id])
+  request      Request?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
   subRequestId String?
-  subRequest   SubRequest? @relation(fields: [subRequestId], references: [id])
+  subRequest   SubRequest? @relation(fields: [subRequestId], references: [id], onDelete: SetNull)
   fromStatus   String
   toStatus     String
   triggeredBy  String
@@ -792,7 +946,7 @@ model ChatConversation {
 model ChatMessage {
   id             String           @id @default(cuid())
   conversationId String
-  conversation   ChatConversation @relation(fields: [conversationId], references: [id])
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String
   content        String           @db.Text
   sources        Json?

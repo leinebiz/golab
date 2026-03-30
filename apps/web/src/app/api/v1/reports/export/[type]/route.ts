@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 interface RouteContext {
   params: Promise<{ type: string }>;
@@ -19,6 +21,8 @@ function toCsvRow(values: (string | number | null | undefined)[]): string {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_FINANCE']);
+
     const { type } = await context.params;
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
@@ -150,6 +154,56 @@ export async function GET(request: NextRequest, context: RouteContext) {
         break;
       }
 
+      case 'exceptions': {
+        const issues = await prisma.sampleIssue.findMany({
+          where: { createdAt: { gte: since } },
+          include: {
+            subRequest: {
+              select: {
+                subReference: true,
+                laboratory: { select: { name: true } },
+                request: {
+                  select: {
+                    reference: true,
+                    organization: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        csv = toCsvRow([
+          'Request Ref',
+          'Sub-Reference',
+          'Organization',
+          'Lab',
+          'Issue Type',
+          'Comments',
+          'Resolution',
+          'Created',
+          'Resolved',
+        ]);
+        csv += '\n';
+        for (const issue of issues) {
+          csv += toCsvRow([
+            issue.subRequest.request.reference,
+            issue.subRequest.subReference,
+            issue.subRequest.request.organization.name,
+            issue.subRequest.laboratory.name,
+            issue.issueType,
+            issue.comments,
+            issue.resolution ?? '',
+            issue.createdAt.toISOString(),
+            issue.resolvedAt?.toISOString() ?? '',
+          ]);
+          csv += '\n';
+        }
+        filename = `exceptions-export-${days}d.csv`;
+        break;
+      }
+
       default:
         return NextResponse.json({ error: `Unknown export type: ${type}` }, { status: 400 });
     }
@@ -160,8 +214,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
-  } catch (error) {
-    console.error('Failed to export report:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'reports.export.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

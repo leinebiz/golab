@@ -5,6 +5,7 @@ import { getCourierProvider } from '@/lib/integrations/courier';
 import type { Address } from '@/lib/integrations/courier';
 import { executeTransition } from '@/lib/workflow/engine';
 import { createRequestLogger } from '@/lib/observability/logger';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 // ============================================================
 // GET /api/v1/waybills?subRequestId=...
@@ -175,6 +176,36 @@ export async function POST(request: NextRequest) {
       { waybillId: waybill.id, waybillNumber: waybill.waybillNumber, subRequestId: subRequest.id },
       'waybill.created',
     );
+
+    // Notify customer: collection scheduled + waybill available
+    const fullRequest = await prisma.request.findUnique({
+      where: { id: subRequest.request.id },
+      select: { reference: true, organizationId: true },
+    });
+    if (fullRequest) {
+      const orgUsers = await prisma.user.findMany({
+        where: { organizationId: fullRequest.organizationId },
+        select: { id: true },
+      });
+      const recipientIds = orgUsers.map((u) => u.id);
+      const notifData = {
+        requestRef: fullRequest.reference,
+        waybillNumber: waybill.waybillNumber,
+        labName: subRequest.laboratory.name,
+      };
+      dispatchNotification('collection.scheduled', {
+        recipientUserIds: recipientIds,
+        requestId: subRequest.request.id,
+        subRequestId: subRequest.id,
+        data: notifData,
+      }).catch(() => {});
+      dispatchNotification('waybill.available', {
+        recipientUserIds: recipientIds,
+        requestId: subRequest.request.id,
+        subRequestId: subRequest.id,
+        data: notifData,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ data: waybill }, { status: 201 });
   } catch (err) {

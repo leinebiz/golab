@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth/middleware';
 import { createPaymentLink } from '@/lib/integrations/stripe/provider';
 import { executeTransition } from '@/lib/workflow/engine';
 import { createRequestLogger } from '@/lib/observability/logger';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -96,6 +97,21 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     }
 
     reqLogger.info({ invoiceId: id, invoiceNumber: invoice.invoiceNumber }, 'payment-link.created');
+
+    // Notify customer about payment link
+    const orgUsers = await prisma.user.findMany({
+      where: { organizationId: invoice.request.organization.id },
+      select: { id: true },
+    });
+    dispatchNotification('payment_link.issued', {
+      recipientUserIds: orgUsers.map((u) => u.id),
+      requestId: invoice.request.id,
+      data: {
+        requestRef: invoice.request.reference,
+        invoiceRef: invoice.invoiceNumber,
+        paymentUrl: paymentResult.paymentUrl,
+      },
+    }).catch((err) => reqLogger.error({ error: err }, 'notification.payment_link.failed'));
 
     return NextResponse.json({ data: { paymentUrl: paymentResult.paymentUrl } });
   } catch (error: unknown) {

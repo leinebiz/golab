@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE']);
+
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
     const since = new Date();
@@ -79,8 +83,14 @@ export async function GET(request: NextRequest) {
       revenueTrend,
       period: { days, since: since.toISOString() },
     });
-  } catch (error) {
-    console.error('Failed to fetch finance metrics:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'reports.finance.fetch.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

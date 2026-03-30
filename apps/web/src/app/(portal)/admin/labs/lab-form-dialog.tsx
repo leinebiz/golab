@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,11 @@ interface LabData {
   isActive: boolean;
 }
 
+interface OrgOption {
+  id: string;
+  name: string;
+}
+
 interface LabFormDialogProps {
   open: boolean;
   onClose: () => void;
@@ -34,7 +39,20 @@ interface LabFormDialogProps {
 export function LabFormDialog({ open, onClose, lab }: LabFormDialogProps) {
   const isEditing = !!lab;
   const [saving, setSaving] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orgs, setOrgs] = useState<OrgOption[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/v1/organizations?type=LAB_PARTNER&limit=100')
+      .then((r) => r.json())
+      .then((json) => {
+        const items = json.data ?? json ?? [];
+        setOrgs(items.map((o: { id: string; name: string }) => ({ id: o.id, name: o.name })));
+      })
+      .catch(() => setOrgs([]));
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,8 +62,7 @@ export function LabFormDialog({ open, onClose, lab }: LabFormDialogProps) {
     try {
       const formData = new FormData(e.currentTarget);
 
-      const payload = {
-        code: formData.get('code') as string,
+      const payload: Record<string, unknown> = {
         name: formData.get('name') as string,
         organizationId: formData.get('organizationId') as string,
         location: {
@@ -93,32 +110,50 @@ export function LabFormDialog({ open, onClose, lab }: LabFormDialogProps) {
         {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-md">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Code — system-generated, read-only when editing */}
+          {isEditing && (
             <div className="space-y-2">
-              <Label htmlFor="code">Code</Label>
-              <Input
-                id="code"
-                name="code"
-                defaultValue={lab?.code ?? ''}
-                required
-                placeholder="e.g. LAB-JHB-001"
-              />
+              <Label>Code</Label>
+              <Input value={lab.code} disabled className="bg-slate-50 text-slate-500" />
+              <p className="text-xs text-slate-500">System-generated — cannot be changed</p>
             </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" defaultValue={lab?.name ?? ''} required />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="organizationId">Organization ID</Label>
-            <Input
-              id="organizationId"
-              name="organizationId"
-              defaultValue={lab?.organizationId ?? ''}
-              required
-              placeholder="Organization CUID"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="organizationId">Organization</Label>
+              {isEditing ? (
+                <>
+                  <Input
+                    value={lab.organizationId}
+                    disabled
+                    className="bg-slate-50 text-slate-500 text-xs font-mono"
+                  />
+                  <p className="text-xs text-slate-500">Cannot be changed after creation</p>
+                </>
+              ) : (
+                <select
+                  id="organizationId"
+                  name="organizationId"
+                  required
+                  defaultValue=""
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-gray-900 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="" disabled>
+                    Select organization...
+                  </option>
+                  {orgs.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -162,6 +197,50 @@ export function LabFormDialog({ open, onClose, lab }: LabFormDialogProps) {
               />
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={geocoding}
+            onClick={async () => {
+              const form = document.querySelector('form') as HTMLFormElement | null;
+              if (!form) return;
+              const address = (new FormData(form).get('address') as string)?.trim();
+              if (!address) {
+                setError('Enter an address first');
+                return;
+              }
+              setGeocoding(true);
+              setError(null);
+              try {
+                const res = await fetch(
+                  `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
+                  {
+                    headers: { 'User-Agent': 'GoLab-Portal/1.0' },
+                  },
+                );
+                const results = await res.json();
+                if (results.length === 0) {
+                  setError('Address not found — enter coordinates manually');
+                  return;
+                }
+                const latInput = form.querySelector('#lat') as HTMLInputElement;
+                const lngInput = form.querySelector('#lng') as HTMLInputElement;
+                if (latInput) {
+                  latInput.value = parseFloat(results[0].lat).toFixed(6);
+                }
+                if (lngInput) {
+                  lngInput.value = parseFloat(results[0].lon).toFixed(6);
+                }
+              } catch {
+                setError('Geocoding failed — enter coordinates manually');
+              } finally {
+                setGeocoding(false);
+              }
+            }}
+          >
+            {geocoding ? 'Looking up...' : 'Auto-fill coordinates from address'}
+          </Button>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">

@@ -52,6 +52,9 @@ export const GOLAB_ADMIN_NAV: NavItem[] = [
   { label: 'Test Catalogue', href: '/admin/tests', icon: 'FlaskConical' },
   { label: 'Customers', href: '/admin/customers', icon: 'Users' },
   { label: 'KPIs & Reports', href: '/admin/reports', icon: 'BarChart3' },
+  { label: 'Communications', href: '/admin/comms', icon: 'Mail' },
+  { label: 'Workflow & Templates', href: '/admin/workflow', icon: 'Settings' },
+  { label: 'Audit Trail', href: '/admin/audit', icon: 'Shield' },
   { label: 'Disclaimers', href: '/admin/disclaimers', icon: 'FileText' },
 ];
 

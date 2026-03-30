@@ -6,6 +6,7 @@ import MicrosoftEntraId from 'next-auth/providers/microsoft-entra-id';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { LoginSchema } from '@golab/shared';
+import { logAuditActivity, AuditActions } from '@/lib/audit/prisma-audit-middleware';
 
 const oauthEnabled = process.env.NEXT_PUBLIC_OAUTH_ENABLED === 'true';
 
@@ -48,10 +49,29 @@ export const authConfig: NextAuthConfig = {
           },
         });
 
-        if (!user?.passwordHash || !user.isActive) return null;
+        if (!user?.passwordHash || !user.isActive) {
+          logAuditActivity({
+            action: AuditActions.LOGIN_FAILED,
+            entityType: 'User',
+            actorEmail: email,
+            actorType: 'user',
+            metadata: { reason: !user ? 'User not found' : 'Account inactive' },
+          });
+          return null;
+        }
 
         const passwordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!passwordValid) return null;
+        if (!passwordValid) {
+          logAuditActivity({
+            action: AuditActions.LOGIN_FAILED,
+            entityType: 'User',
+            entityId: user.id,
+            actorEmail: email,
+            actorType: 'user',
+            metadata: { reason: 'Invalid password' },
+          });
+          return null;
+        }
 
         return {
           id: user.id,
@@ -137,6 +157,31 @@ export const authConfig: NextAuthConfig = {
       }
 
       return true;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      await logAuditActivity({
+        action: AuditActions.LOGIN_SUCCESS,
+        entityType: 'User',
+        entityId: user.id ?? null,
+        entityLabel: user.email ?? null,
+        actorId: user.id ?? null,
+        actorName: user.name ?? null,
+        actorEmail: user.email ?? null,
+        actorType: 'user',
+      });
+    },
+    async signOut(message) {
+      const tk = ('token' in message ? message.token : null) as Record<string, unknown> | null;
+      await logAuditActivity({
+        action: AuditActions.LOGOUT,
+        entityType: 'User',
+        entityId: (tk?.id as string) ?? null,
+        actorId: (tk?.id as string) ?? null,
+        actorEmail: (tk?.email as string) ?? null,
+        actorType: 'user',
+      });
     },
   },
   session: {

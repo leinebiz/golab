@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { ResetPasswordSchema } from '@golab/shared';
+import { checkRateLimit, rateLimitResponse } from '@/lib/security/rate-limiter';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const { allowed, resetAt } = checkRateLimit(ip, 'auth');
+  if (!allowed) return rateLimitResponse(resetAt);
+
   try {
     const body = await request.json();
     const parsed = ResetPasswordSchema.safeParse(body);
@@ -44,7 +50,7 @@ export async function POST(request: Request) {
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
-        where: { id: auditLog.entityId },
+        where: { id: auditLog.entityId! },
         data: { passwordHash },
       });
 
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
       message: 'Password has been reset successfully.',
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error({ error }, 'auth.reset_password.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

@@ -6,20 +6,27 @@ import type { NotificationEventType } from '@/lib/notifications/types';
 
 /** Human-readable labels for event types */
 const EVENT_LABELS: Record<NotificationEventType, string> = {
-  'quote.ready': 'Quote ready for review',
-  'quote.accepted': 'Quote accepted',
-  'invoice.generated': 'Invoice generated',
-  'payment.confirmed': 'Payment confirmed',
+  'profile.created': 'Account created',
+  'credit.submitted': 'Credit application submitted',
   'credit.approved': 'Credit approved',
   'credit.declined': 'Credit declined',
+  'quote.ready': 'Quote ready for review',
+  'quote.accepted': 'Quote accepted',
+  'payment_link.issued': 'Payment link issued',
+  'payment.confirmed': 'Payment confirmed',
+  'invoice.generated': 'Invoice generated',
+  'collection.scheduled': 'Collection scheduled',
+  'waybill.available': 'Waybill available',
   'sample.collected': 'Sample collected',
   'sample.delivered': 'Sample delivered to lab',
+  'lab.accepted_sample': 'Lab accepted sample',
   'sample.exception': 'Sample issue reported',
-  'testing.started': 'Testing started',
+  'testing.delayed': 'Testing delayed',
   'testing.completed': 'Testing completed',
+  'certificate.awaiting_review': 'Certificate awaiting review',
   'results.ready': 'Results ready',
-  'certificate.available': 'Certificate available',
-  'request.status_changed': 'Request status changed',
+  'customer.action_required': 'Action required',
+  'request.closed': 'Request closed',
 };
 
 const CHANNEL_LABELS = {

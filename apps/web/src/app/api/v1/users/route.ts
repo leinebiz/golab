@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
 import { InviteUserSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to fetch users:', error);
+    logger.error({ error }, 'users.fetch.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to invite user:', error);
+    logger.error({ error }, 'users.invite.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

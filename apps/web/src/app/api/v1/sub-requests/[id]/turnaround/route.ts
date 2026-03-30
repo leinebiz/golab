@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { requireRole } from '@/lib/auth/middleware';
+import { logger } from '@/lib/observability/logger';
 
 const UpdateTurnaroundSchema = z.object({
   expectedCompletionAt: z.string().datetime().optional(),
@@ -10,6 +13,8 @@ const UpdateTurnaroundSchema = z.object({
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'LAB_ADMIN']);
+
     const { id } = await params;
     const body = await request.json();
 
@@ -80,9 +85,35 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       return updated;
     });
 
+    // Notify customer about testing delay
+    if (flagDelay && delayReason) {
+      const subReq = await prisma.subRequest.findUnique({
+        where: { id },
+        include: { request: { select: { id: true, reference: true, organizationId: true } } },
+      });
+      if (subReq) {
+        const orgUsers = await prisma.user.findMany({
+          where: { organizationId: subReq.request.organizationId },
+          select: { id: true },
+        });
+        dispatchNotification('testing.delayed', {
+          recipientUserIds: orgUsers.map((u) => u.id),
+          requestId: subReq.request.id,
+          subRequestId: id,
+          data: { requestRef: subReq.request.reference, reason: delayReason },
+        }).catch(() => {});
+      }
+    }
+
     return NextResponse.json(result);
-  } catch (error) {
-    console.error('Failed to update turnaround:', error);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    logger.error({ error }, 'subrequest.turnaround.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
