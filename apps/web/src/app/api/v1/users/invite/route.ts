@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { InviteUserSchema } from '@golab/shared';
+import { requireRole } from '@/lib/auth/middleware';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireRole(['GOLAB_ADMIN', 'CUSTOMER_ADMIN']);
+    const caller = session.user as { id: string; role: string; organizationId?: string };
+
     const body = await request.json();
     const parsed = InviteUserSchema.safeParse(body);
 
@@ -14,6 +18,11 @@ export async function POST(request: NextRequest) {
     const { organizationId } = body;
     if (!organizationId) {
       return NextResponse.json({ error: 'organizationId is required' }, { status: 400 });
+    }
+
+    // CUSTOMER_ADMIN can only invite users to their own organization
+    if (caller.role === 'CUSTOMER_ADMIN' && organizationId !== caller.organizationId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if user with this email already exists
@@ -51,6 +60,12 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     console.error('Failed to invite user:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

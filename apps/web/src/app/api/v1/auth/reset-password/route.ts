@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { ResetPasswordSchema } from '@golab/shared';
@@ -16,13 +17,14 @@ export async function POST(request: Request) {
     }
 
     const { token, password } = parsed.data;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     const auditLog = await prisma.auditLog.findFirst({
       where: {
         action: 'PASSWORD_RESET_REQUESTED',
         metadata: {
           path: ['tokenHash'],
-          equals: token,
+          equals: tokenHash,
         },
       },
       orderBy: { createdAt: 'desc' },
