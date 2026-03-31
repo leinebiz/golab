@@ -95,7 +95,7 @@ export async function bookWaybillsForRequest(requestId: string): Promise<void> {
         entityType: 'SubRequest',
         entityId: sub.id,
         targetStatus: 'WAYBILL_AVAILABLE',
-        triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'system' },
+        triggeredBy: { userId: 'SYSTEM', role: 'SYSTEM', type: 'system' },
         reason: `Auto-booked after payment: ${pickupResult.waybillNumber}`,
       });
 

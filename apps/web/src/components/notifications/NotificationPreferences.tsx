@@ -20,6 +20,8 @@ const EVENT_LABELS: Record<NotificationEventType, string> = {
   'results.ready': 'Results ready',
   'certificate.available': 'Certificate available',
   'request.status_changed': 'Request status changed',
+  'customer.callback_requested': 'Customer callback requested',
+  'customer.retest_requested': 'Customer retest requested',
 };
 
 const CHANNEL_LABELS = {

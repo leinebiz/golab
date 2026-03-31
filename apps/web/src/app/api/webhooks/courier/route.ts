@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         entityId: waybill.subRequestId,
         targetStatus: targetSubRequestStatus,
         triggeredBy: {
-          userId: 'system',
+          userId: 'SYSTEM',
           role: 'SYSTEM',
           type: 'webhook',
         },

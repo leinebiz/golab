@@ -1,3 +1,5 @@
+import { prisma } from '@golab/database';
+
 export interface TransitionContext {
   entityId: string;
   entityType: 'Request' | 'SubRequest';
@@ -54,11 +56,22 @@ export const REQUEST_TRANSITIONS: StateTransition<string>[] = [
     from: 'INVOICE_GENERATED',
     to: 'CREDIT_APPROVED_FOR_REQUEST',
     roles: ['SYSTEM'],
+    guard: async (ctx) => {
+      const request = await prisma.request.findUniqueOrThrow({
+        where: { id: ctx.entityId },
+        include: { organization: { include: { creditAccount: true } } },
+      });
+      const credit = request.organization.creditAccount;
+      if (!credit || credit.status !== 'APPROVED') return false;
+      const invoice = await prisma.invoice.findUnique({ where: { requestId: ctx.entityId } });
+      if (!invoice) return false;
+      return Number(credit.availableCredit) >= Number(invoice.totalAmount);
+    },
   },
   {
     from: 'AWAITING_COD_PAYMENT',
     to: 'PAYMENT_RECEIVED',
-    roles: ['SYSTEM', 'system'],
+    roles: ['SYSTEM'],
   },
   {
     from: ['PAYMENT_RECEIVED', 'CREDIT_APPROVED_FOR_REQUEST'],
@@ -168,6 +181,19 @@ export const SUB_REQUEST_TRANSITIONS: StateTransition<string>[] = [
   {
     from: 'DELIVERED_TO_LAB',
     to: 'SAMPLE_REJECTED',
+    roles: ['LAB_ADMIN', 'LAB_TECHNICIAN'],
+  },
+  // Recovery from dead-end statuses
+  { from: 'SAMPLE_REJECTED', to: 'PICKUP_REQUESTED', roles: ['GOLAB_ADMIN'] },
+  { from: 'SAMPLE_REJECTED', to: 'CANCELLED', roles: ['GOLAB_ADMIN'] },
+  { from: 'PICKUP_EXCEPTION', to: 'PICKUP_SCHEDULED', roles: ['GOLAB_ADMIN', 'SYSTEM'] },
+  { from: 'PICKUP_EXCEPTION', to: 'CANCELLED', roles: ['GOLAB_ADMIN'] },
+  { from: 'LAB_ALLOCATION_EXCEPTION', to: 'PICKUP_REQUESTED', roles: ['GOLAB_ADMIN', 'SYSTEM'] },
+  { from: 'LAB_ALLOCATION_EXCEPTION', to: 'CANCELLED', roles: ['GOLAB_ADMIN'] },
+  // Resume after exception resolution
+  {
+    from: 'SAMPLE_EXCEPTION_LOGGED',
+    to: 'SAMPLE_ACCEPTED_BY_LAB',
     roles: ['LAB_ADMIN', 'LAB_TECHNICIAN'],
   },
 ];

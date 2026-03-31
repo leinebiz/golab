@@ -87,4 +87,16 @@ export const notificationMatrix: Record<NotificationEventType, NotificationMatri
     body: (d) => `Request ${d.requestRef ?? 'N/A'} status changed to ${d.newStatus ?? 'updated'}.`,
     channels: ['PORTAL'],
   },
+  'customer.callback_requested': {
+    title: () => 'Customer Callback Requested',
+    body: (d) =>
+      `Customer has requested a callback for request ${d.requestRef ?? 'N/A'}.${d.notes ? ` Notes: ${d.notes}` : ''}`,
+    channels: ['PORTAL', 'EMAIL'],
+  },
+  'customer.retest_requested': {
+    title: () => 'Retest / Lab Transfer Requested',
+    body: (d) =>
+      `Customer requested ${d.action === 'RETEST' ? 'a retest' : 'transfer to another lab'} for request ${d.requestRef ?? 'N/A'}. ${d.newSubRequestCount ?? 0} new sub-request(s) created.`,
+    channels: ['PORTAL', 'EMAIL'],
+  },
 };
