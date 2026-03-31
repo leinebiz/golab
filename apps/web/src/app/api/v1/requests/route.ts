@@ -253,6 +253,7 @@ export async function POST(req: NextRequest) {
           turnaroundType: parsed.data.turnaroundType,
           collectionAddressId: parsed.data.collectionAddressId,
           specialInstructions: parsed.data.specialInstructions ?? null,
+          sampleType: parsed.data.sampleType ?? null,
         },
       });
 

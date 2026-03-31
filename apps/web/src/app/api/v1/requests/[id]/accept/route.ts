@@ -60,26 +60,41 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     });
 
     if (reqWithQuote?.quote && !reqWithQuote.invoice) {
-      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const count = await prisma.invoice.count();
-      const invoiceNumber = `INV-${dateStr}-${String(count + 1).padStart(5, '0')}`;
+      const createInvoice = async () => {
+        return prisma.$transaction(async (tx) => {
+          const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const count = await tx.invoice.count();
+          const invoiceNumber = `INV-${dateStr}-${String(count + 1).padStart(5, '0')}`;
 
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30);
 
-      await prisma.invoice.create({
-        data: {
-          requestId: id,
-          invoiceNumber,
-          status: 'ISSUED',
-          subtotal: reqWithQuote.quote.subtotal,
-          vatAmount: reqWithQuote.quote.vatAmount,
-          totalAmount: reqWithQuote.quote.totalAmount,
-          lineItems: reqWithQuote.quote.lineItems as object,
-          dueDate,
-          issuedAt: new Date(),
-        },
-      });
+          return tx.invoice.create({
+            data: {
+              requestId: id,
+              invoiceNumber,
+              status: 'ISSUED',
+              subtotal: reqWithQuote.quote!.subtotal,
+              vatAmount: reqWithQuote.quote!.vatAmount,
+              totalAmount: reqWithQuote.quote!.totalAmount,
+              lineItems: reqWithQuote.quote!.lineItems as object,
+              dueDate,
+              issuedAt: new Date(),
+            },
+          });
+        });
+      };
+
+      try {
+        await createInvoice();
+      } catch (err) {
+        if ((err as { code?: string }).code === 'P2002') {
+          // Retry once on unique constraint violation (invoice number race)
+          await createInvoice();
+        } else {
+          throw err;
+        }
+      }
 
       // Transition: ACCEPTED_BY_CUSTOMER -> INVOICE_GENERATED
       try {
