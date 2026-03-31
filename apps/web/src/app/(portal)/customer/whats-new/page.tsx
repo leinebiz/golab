@@ -53,14 +53,33 @@ function getServerSnapshot(): string | null {
   return null;
 }
 
-/** Simple markdown-like rendering for bold text and inline code */
-function renderMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(
-      /`(.+?)`/g,
-      '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>',
-    );
+/** Safe React rendering for bold text and inline code (no dangerouslySetInnerHTML) */
+function renderFormattedText(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  const regex = /(\*\*(.+?)\*\*|`(.+?)`)/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[2]) {
+      parts.push(<strong key={key++}>{match[2]}</strong>);
+    } else if (match[3]) {
+      parts.push(
+        <code key={key++} className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">
+          {match[3]}
+        </code>,
+      );
+    }
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
 }
 
 export default function WhatsNewPage() {
@@ -109,7 +128,7 @@ export default function WhatsNewPage() {
                       {section.items.map((item, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
                           <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                          <span dangerouslySetInnerHTML={{ __html: renderMarkdown(item) }} />
+                          <span>{renderFormattedText(item)}</span>
                         </li>
                       ))}
                     </ul>
