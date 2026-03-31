@@ -1,6 +1,7 @@
 import { prisma, Prisma } from '@golab/database';
 import { notificationMatrix } from './matrix';
 import { enqueueNotificationJob } from './queues';
+import { logger } from '@/lib/observability/logger';
 import type { NotificationContext, NotificationEventType, NotificationJobPayload } from './types';
 
 /**
@@ -17,20 +18,24 @@ export async function dispatchNotification(
 ): Promise<void> {
   const entry = notificationMatrix[eventType];
   if (!entry) {
-    console.warn(`[notifications] No matrix entry for event: ${eventType}`);
+    logger.warn({ eventType }, 'notifications.dispatch.unknown_event');
     return;
   }
 
   const title = entry.title(context.data);
   const body = entry.body(context.data);
 
-  for (const userId of context.recipientUserIds) {
-    for (const channel of entry.channels) {
-      // Persist the notification record
-      const notification = await prisma.notification.create({
+  const notificationInputs = context.recipientUserIds.flatMap((userId) =>
+    entry.channels.map((channel) => ({ userId, channel })),
+  );
+
+  // Persist all notifications in a single transaction
+  const notifications = await prisma.$transaction(
+    notificationInputs.map((input) =>
+      prisma.notification.create({
         data: {
-          userId,
-          channel,
+          userId: input.userId,
+          channel: input.channel,
           type: eventType,
           title,
           body,
@@ -38,23 +43,30 @@ export async function dispatchNotification(
           requestId: context.requestId ?? null,
           subRequestId: context.subRequestId ?? null,
         },
-      });
+      }),
+    ),
+  );
 
-      // Build job payload
-      const payload: NotificationJobPayload = {
-        notificationId: notification.id,
-        userId,
-        channel,
-        eventType,
-        title,
-        body,
-        requestId: context.requestId,
-        subRequestId: context.subRequestId,
-        data: context.data,
-      };
-
-      // Enqueue for async processing
-      await enqueueNotificationJob(channel, `${eventType}:${userId}`, payload, notification.id);
-    }
+  // Enqueue jobs for async delivery
+  for (let i = 0; i < notifications.length; i++) {
+    const notification = notifications[i];
+    const input = notificationInputs[i];
+    const payload: NotificationJobPayload = {
+      notificationId: notification.id,
+      userId: input.userId,
+      channel: input.channel,
+      eventType,
+      title,
+      body,
+      requestId: context.requestId,
+      subRequestId: context.subRequestId,
+      data: context.data,
+    };
+    await enqueueNotificationJob(
+      input.channel,
+      `${eventType}:${input.userId}`,
+      payload,
+      notification.id,
+    );
   }
 }

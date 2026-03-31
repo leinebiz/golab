@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { LogSampleIssueSchema } from '@golab/shared';
 import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -81,7 +82,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           issueType: parsed.data.issueType,
           comments: parsed.data.comments,
         },
-      }).catch(() => {});
+      }).catch((err) => logger.error({ error: err }, 'sub-request.log-issue.notification.failed'));
     }
 
     return NextResponse.json(result, { status: 201 });

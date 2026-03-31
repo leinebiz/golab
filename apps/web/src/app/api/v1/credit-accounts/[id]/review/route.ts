@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       dispatchNotification(eventType, {
         recipientUserIds: creditAccount.organization.users.map((u: { id: string }) => u.id),
         data: { organizationName: creditAccount.organization.name, action },
-      }).catch(() => {});
+      }).catch((err) => reqLogger.error({ error: err }, 'credit.review.notification.failed'));
     }
 
     return NextResponse.json({ success: true });

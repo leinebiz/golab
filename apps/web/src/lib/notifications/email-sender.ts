@@ -1,4 +1,5 @@
 import { getEmailTemplate } from './templates';
+import { logger } from '@/lib/observability/logger';
 import type { NotificationEventType } from './types';
 
 interface SendEmailParams {
@@ -27,7 +28,7 @@ export async function sendNotificationEmail(params: SendEmailParams): Promise<Se
   });
 
   if (process.env.NODE_ENV !== 'production' || !process.env.EMAIL_PROVIDER_API_KEY) {
-    console.log(`[email:dev] To: ${to}, Subject: ${subject}, HTML: ${html.length}chars`);
+    logger.info({ to, subject, htmlLength: html.length }, 'email.dev.skipped');
     return { success: true, messageId: `dev-${Date.now()}` };
   }
 

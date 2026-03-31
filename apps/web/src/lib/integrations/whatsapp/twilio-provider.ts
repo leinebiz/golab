@@ -1,9 +1,11 @@
 /**
  * WhatsApp provider using Twilio API.
  *
- * In development/test, messages are logged to console.
+ * In development/test, messages are logged.
  * In production, calls the Twilio WhatsApp Business API.
  */
+
+import { logger } from '@/lib/observability/logger';
 
 export interface WhatsAppMessage {
   to: string;
@@ -31,11 +33,7 @@ export async function sendWhatsAppMessage(message: WhatsAppMessage): Promise<Wha
   }
 
   if (isDev) {
-    console.log('[whatsapp:dev] Would send message:', {
-      to: message.to,
-      template: message.templateName,
-      variables: message.variables,
-    });
+    logger.info({ to: message.to, template: message.templateName }, 'whatsapp.dev.skipped');
     return { success: true, messageId: `dev-${Date.now()}` };
   }
 
