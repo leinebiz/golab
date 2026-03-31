@@ -44,8 +44,8 @@ function fetchConversations() {
       conversationCache = data;
       for (const l of listeners) l();
     })
-    .catch(() => {
-      // Silently handle fetch failures
+    .catch((err) => {
+      console.error('chat.fetchConversations.failed', err);
     });
 }
 
