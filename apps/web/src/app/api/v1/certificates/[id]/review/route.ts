@@ -104,7 +104,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           entityType: 'SubRequest',
           entityId: certificate.subRequest.id,
           targetStatus: 'RELEASED_TO_CUSTOMER',
-          triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'system' },
+          triggeredBy: { userId: 'SYSTEM', role: 'SYSTEM', type: 'system' },
           reason: 'Auto-released after certificate approval',
           metadata: { certificateId: id },
         });

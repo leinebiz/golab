@@ -56,3 +56,15 @@ export const ReviewCertificateSchema = z
   });
 
 export type ReviewCertificateInput = z.infer<typeof ReviewCertificateSchema>;
+
+export const CustomerActionSchema = z
+  .object({
+    action: z.enum(['ACCEPT_AND_CLOSE', 'RETEST', 'SEND_TO_ANOTHER_LAB', 'REQUEST_CALLBACK']),
+    notes: z.string().max(2000).optional(),
+  })
+  .refine((data) => data.action === 'ACCEPT_AND_CLOSE' || (data.notes && data.notes.length >= 5), {
+    message: 'Notes required for retest, lab change, or callback requests',
+    path: ['notes'],
+  });
+
+export type CustomerActionInput = z.infer<typeof CustomerActionSchema>;

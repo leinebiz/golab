@@ -102,7 +102,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
           entityType: 'Request',
           entityId: id,
           targetStatus: 'INVOICE_GENERATED',
-          triggeredBy: { userId: 'system', role: 'SYSTEM', type: 'system' },
+          triggeredBy: { userId: 'SYSTEM', role: 'SYSTEM', type: 'system' },
           reason: 'Auto-generated invoice after quote acceptance',
         });
       } catch (err) {

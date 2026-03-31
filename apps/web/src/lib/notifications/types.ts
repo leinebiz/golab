@@ -20,7 +20,9 @@ export type NotificationEventType =
   | 'testing.completed'
   | 'results.ready'
   | 'certificate.available'
-  | 'request.status_changed';
+  | 'request.status_changed'
+  | 'customer.callback_requested'
+  | 'customer.retest_requested';
 
 /** Context passed to the dispatcher for fan-out */
 export interface NotificationContext {

@@ -138,7 +138,7 @@ async function handleCheckoutCompleted(parsed: {
         entityId: invoice.request.id,
         targetStatus: 'PAYMENT_RECEIVED',
         triggeredBy: {
-          userId: 'system',
+          userId: 'SYSTEM',
           role: 'SYSTEM',
           type: 'webhook',
         },
