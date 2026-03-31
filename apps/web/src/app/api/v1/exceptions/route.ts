@@ -4,9 +4,22 @@ import { prisma } from '@/lib/db';
 import { requireRole } from '@/lib/auth/middleware';
 import { handleApiError } from '@/lib/api/errors';
 import { executeTransition } from '@/lib/workflow/engine';
-import { LogSampleIssueSchema } from '@golab/shared';
-
-const issueTypeEnum = LogSampleIssueSchema._def.schema.shape.issueType;
+const ISSUE_TYPES = [
+  'INSUFFICIENT_SAMPLE',
+  'SAMPLE_DAMAGED',
+  'INCORRECT_TEST_CHOSEN',
+  'INCORRECT_PACKAGING',
+  'OTHER',
+  'MISSING_CUSTOMER_INFO',
+  'PAYMENT_NOT_RECEIVED',
+  'INSUFFICIENT_CREDIT',
+  'COURIER_FAILED_COLLECTION',
+  'DELAYED_COLLECTION',
+  'DELIVERED_TO_WRONG_LAB',
+  'TURNAROUND_DELAY',
+  'CERTIFICATE_MISMATCH',
+  'CUSTOMER_DISPUTE',
+] as const;
 
 /**
  * GET /api/v1/exceptions
@@ -69,7 +82,7 @@ export async function GET(request: NextRequest) {
 }
 
 const CreateExceptionSchema = z.object({
-  issueType: issueTypeEnum,
+  issueType: z.enum(ISSUE_TYPES),
   comments: z.string().min(1).max(2000),
   subRequestId: z.string().cuid().optional(),
   assignedToId: z.string().cuid().optional(),
