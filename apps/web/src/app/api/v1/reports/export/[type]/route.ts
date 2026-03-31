@@ -25,6 +25,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '10000', 10), 50000);
+
     let csv = '';
     let filename = '';
 
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             invoice: { select: { totalAmount: true, status: true } },
           },
           orderBy: { createdAt: 'desc' },
+          take: limit,
         });
 
         csv = toCsvRow([
@@ -60,9 +63,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
             r.status,
             r.organization.name,
             r.turnaroundType,
-            r.quote ? Number(r.quote.totalAmount).toFixed(2) : '',
+            r.quote ? r.quote.totalAmount.toString() : '',
             r.quote?.isAccepted ? 'Yes' : 'No',
-            r.invoice ? Number(r.invoice.totalAmount).toFixed(2) : '',
+            r.invoice ? r.invoice.totalAmount.toString() : '',
             r.invoice?.status ?? '',
             r.createdAt.toISOString(),
             r.acceptedAt?.toISOString() ?? '',
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           where: { createdAt: { gte: since } },
           include: { laboratory: { select: { name: true, code: true } } },
           orderBy: { createdAt: 'desc' },
+          take: limit,
         });
 
         csv = toCsvRow([
@@ -116,6 +120,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             },
           },
           orderBy: { createdAt: 'desc' },
+          take: limit,
         });
 
         csv = toCsvRow([
@@ -137,9 +142,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
             inv.request.reference,
             inv.request.organization.name,
             inv.status,
-            Number(inv.subtotal).toFixed(2),
-            Number(inv.vatAmount).toFixed(2),
-            Number(inv.totalAmount).toFixed(2),
+            inv.subtotal.toString(),
+            inv.vatAmount.toString(),
+            inv.totalAmount.toString(),
             inv.issuedAt?.toISOString() ?? '',
             inv.paidAt?.toISOString() ?? '',
             inv.dueDate.toISOString(),

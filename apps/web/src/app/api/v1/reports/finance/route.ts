@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+/** Add two decimal-string values, returning a decimal string with 2 decimal places. */
+function addDecimalStrings(a: string, b: string): string {
+  return (parseFloat(a) + parseFloat(b)).toFixed(2);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -8,66 +13,76 @@ export async function GET(request: NextRequest) {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
-    const revenueResult = await prisma.invoice.aggregate({
-      where: { status: 'PAID', paidAt: { gte: since } },
-      _sum: { totalAmount: true },
-      _count: { id: true },
-    });
+    const [revenueResult, outstandingResult, overdueResult, creditAccounts, paidInvoices] =
+      await Promise.all([
+        prisma.invoice.aggregate({
+          where: { status: 'PAID', paidAt: { gte: since } },
+          _sum: { totalAmount: true },
+          _count: { id: true },
+        }),
+        prisma.invoice.aggregate({
+          where: { status: { in: ['ISSUED', 'PAYMENT_LINK_SENT', 'OVERDUE'] } },
+          _sum: { totalAmount: true },
+          _count: { id: true },
+        }),
+        prisma.invoice.aggregate({
+          where: { status: 'OVERDUE' },
+          _sum: { totalAmount: true },
+          _count: { id: true },
+        }),
+        prisma.creditAccount.findMany({
+          where: { status: 'APPROVED' },
+          select: { creditLimit: true, availableCredit: true, outstandingBalance: true },
+        }),
+        prisma.invoice.findMany({
+          where: { status: 'PAID', paidAt: { gte: since } },
+          select: { paidAt: true, totalAmount: true },
+          orderBy: { paidAt: 'asc' },
+        }),
+      ]);
 
-    const outstandingResult = await prisma.invoice.aggregate({
-      where: { status: { in: ['ISSUED', 'PAYMENT_LINK_SENT', 'OVERDUE'] } },
-      _sum: { totalAmount: true },
-      _count: { id: true },
-    });
-
-    const overdueResult = await prisma.invoice.aggregate({
-      where: { status: 'OVERDUE' },
-      _sum: { totalAmount: true },
-      _count: { id: true },
-    });
-
-    const creditAccounts = await prisma.creditAccount.findMany({
-      where: { status: 'APPROVED' },
-      select: { creditLimit: true, availableCredit: true, outstandingBalance: true },
-    });
-
-    let totalCreditLimit = 0;
-    let totalUtilized = 0;
+    let totalCreditLimit = '0.00';
+    let totalUtilized = '0.00';
     for (const acct of creditAccounts) {
-      totalCreditLimit += Number(acct.creditLimit);
-      totalUtilized += Number(acct.outstandingBalance);
+      totalCreditLimit = addDecimalStrings(
+        totalCreditLimit,
+        acct.creditLimit?.toString() ?? '0.00',
+      );
+      totalUtilized = addDecimalStrings(
+        totalUtilized,
+        acct.outstandingBalance?.toString() ?? '0.00',
+      );
     }
+    const creditLimitNum = parseFloat(totalCreditLimit);
+    const utilizedNum = parseFloat(totalUtilized);
     const creditUtilization =
-      totalCreditLimit > 0 ? Math.round((totalUtilized / totalCreditLimit) * 100 * 10) / 10 : 0;
+      creditLimitNum > 0 ? Math.round((utilizedNum / creditLimitNum) * 100 * 10) / 10 : 0;
 
-    const paidInvoices = await prisma.invoice.findMany({
-      where: { status: 'PAID', paidAt: { gte: since } },
-      select: { paidAt: true, totalAmount: true },
-      orderBy: { paidAt: 'asc' },
-    });
-
-    const revenueByDay: Record<string, number> = {};
+    const revenueByDay: Record<string, string> = {};
     for (const inv of paidInvoices) {
       if (!inv.paidAt) continue;
       const day = inv.paidAt.toISOString().split('T')[0];
-      revenueByDay[day] = (revenueByDay[day] ?? 0) + Number(inv.totalAmount);
+      revenueByDay[day] = addDecimalStrings(
+        revenueByDay[day] ?? '0.00',
+        inv.totalAmount?.toString() ?? '0.00',
+      );
     }
     const revenueTrend = Object.entries(revenueByDay).map(([date, amount]) => ({
       date,
-      amount: Math.round(amount * 100) / 100,
+      amount,
     }));
 
     return NextResponse.json({
       revenue: {
-        total: Number(revenueResult._sum.totalAmount ?? 0),
+        total: revenueResult._sum.totalAmount?.toString() ?? '0.00',
         invoiceCount: revenueResult._count.id,
       },
       outstanding: {
-        total: Number(outstandingResult._sum.totalAmount ?? 0),
+        total: outstandingResult._sum.totalAmount?.toString() ?? '0.00',
         invoiceCount: outstandingResult._count.id,
       },
       overdue: {
-        total: Number(overdueResult._sum.totalAmount ?? 0),
+        total: overdueResult._sum.totalAmount?.toString() ?? '0.00',
         invoiceCount: overdueResult._count.id,
       },
       credit: {
