@@ -99,6 +99,15 @@ enum SampleIssueType {
   INCORRECT_TEST_CHOSEN
   INCORRECT_PACKAGING
   OTHER
+  MISSING_CUSTOMER_INFO
+  PAYMENT_NOT_RECEIVED
+  INSUFFICIENT_CREDIT
+  COURIER_FAILED_COLLECTION
+  DELAYED_COLLECTION
+  DELIVERED_TO_WRONG_LAB
+  TURNAROUND_DELAY
+  CERTIFICATE_MISMATCH
+  CUSTOMER_DISPUTE
 }
 
 enum CertificateFormat {
@@ -198,6 +207,8 @@ model User {
   sessions       Session[]
   auditLogs      AuditLog[]    @relation("AuditActor")
   notifications  Notification[]
+
+  assignedIssues SampleIssue[] @relation("AssignedIssues")
 
   preferredChannel NotificationChannel @default(EMAIL)
   whatsappNumber   String?
@@ -643,19 +654,23 @@ model Certificate {
 
 model SampleIssue {
   id           String          @id @default(cuid())
-  subRequestId String
-  subRequest   SubRequest      @relation(fields: [subRequestId], references: [id])
+  subRequestId String?
+  subRequest   SubRequest?     @relation(fields: [subRequestId], references: [id])
   reportedById String
   issueType    SampleIssueType
   comments     String
   resolution   String?
   resolvedAt   DateTime?
   resolvedById String?
+  assignedToId String?
+  assignedTo   User?           @relation("AssignedIssues", fields: [assignedToId], references: [id])
+  priority     String          @default("MEDIUM")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([subRequestId])
+  @@index([assignedToId])
 }
 
 // ============================================================

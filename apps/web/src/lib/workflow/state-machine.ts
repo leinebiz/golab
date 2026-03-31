@@ -106,14 +106,14 @@ export const SUB_REQUEST_TRANSITIONS: StateTransition<string>[] = [
     roles: ['LAB_ADMIN', 'LAB_TECHNICIAN'],
   },
   {
-    from: 'SAMPLE_ACCEPTED_BY_LAB',
+    from: ['SAMPLE_ACCEPTED_BY_LAB', 'TESTING_SCHEDULED', 'TESTING_IN_PROGRESS'],
     to: 'SAMPLE_EXCEPTION_LOGGED',
-    roles: ['LAB_ADMIN', 'LAB_TECHNICIAN'],
+    roles: ['LAB_ADMIN', 'LAB_TECHNICIAN', 'GOLAB_ADMIN', 'GOLAB_REVIEWER'],
   },
   {
     from: ['SAMPLE_ACCEPTED_BY_LAB', 'SAMPLE_EXCEPTION_LOGGED'],
     to: 'TESTING_SCHEDULED',
-    roles: ['LAB_ADMIN', 'LAB_TECHNICIAN'],
+    roles: ['LAB_ADMIN', 'LAB_TECHNICIAN', 'GOLAB_ADMIN', 'GOLAB_REVIEWER'],
   },
   {
     from: 'TESTING_SCHEDULED',
