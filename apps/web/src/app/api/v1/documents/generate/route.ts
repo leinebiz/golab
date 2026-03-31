@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import React from 'react';
 import { generatePdf, storePdf } from '@/lib/pdf/generator';
+import { requireRole } from '@/lib/auth/middleware';
+import { prisma } from '@golab/database';
 import { RequestForm, Quote, Invoice, Certificate } from '@golab/pdf-templates';
 import type {
   RequestFormData,
@@ -13,6 +15,7 @@ type DocumentType = 'request-form' | 'quote' | 'invoice' | 'certificate';
 
 interface GenerateRequest {
   type: DocumentType;
+  requestId?: string;
   data: RequestFormData | QuoteData | InvoiceData | CertificateData;
 }
 
@@ -48,10 +51,38 @@ function buildS3Key(type: DocumentType, data: Record<string, unknown>): string {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireRole([
+      'GOLAB_ADMIN',
+      'GOLAB_REVIEWER',
+      'CUSTOMER_ADMIN',
+      'CUSTOMER_USER',
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = session.user as any;
+    const userRole = user.role as string;
+    const userOrgId = user.organizationId as string | undefined;
+
     const body = (await request.json()) as GenerateRequest;
 
     if (!body.type || !body.data) {
       return NextResponse.json({ error: 'Missing required fields: type, data' }, { status: 400 });
+    }
+
+    // Ownership check for customer roles
+    if (['CUSTOMER_ADMIN', 'CUSTOMER_USER'].includes(userRole)) {
+      if (!body.requestId) {
+        return NextResponse.json(
+          { error: 'requestId is required for customer users' },
+          { status: 400 },
+        );
+      }
+      const linkedRequest = await prisma.request.findUnique({
+        where: { id: body.requestId },
+        select: { organizationId: true },
+      });
+      if (!linkedRequest || linkedRequest.organizationId !== userOrgId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const validTypes: DocumentType[] = ['request-form', 'quote', 'invoice', 'certificate'];
@@ -69,6 +100,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ key, size: buffer.length }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'Forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: 'Failed to generate document', details: message },
