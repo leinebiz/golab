@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { executeTransition } from '@/lib/workflow/engine';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await requireRole(['LAB_STAFF', 'LAB_MANAGER', 'ADMIN']);
+    const user = session.user as { id: string; role: string };
     const { id } = await params;
 
     const subRequest = await prisma.subRequest.findUnique({
@@ -14,12 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Sub-request not found' }, { status: 404 });
     }
 
-    const validStatuses = [
-      'TESTING_IN_PROGRESS',
-      'TESTING_COMPLETED',
-      'TESTING_DELAYED',
-      'RETURNED_TO_LAB',
-    ];
+    const validStatuses = ['TESTING_COMPLETED', 'RETURNED_TO_LAB'];
 
     if (!validStatuses.includes(subRequest.status)) {
       return NextResponse.json(
@@ -48,15 +47,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // For now, generate a placeholder key.
     const fileKey = `certificates/${subRequest.subReference}/${Date.now()}-${file.name}`;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const certificate = await prisma.$transaction(async (tx) => {
       const existingCount = await tx.certificate.count({
         where: { subRequestId: id },
       });
 
-      const certificate = await tx.certificate.create({
+      const cert = await tx.certificate.create({
         data: {
           subRequestId: id,
-          uploadedById: 'lab-user',
+          uploadedById: user.id,
           format: 'LAB_ORIGINAL',
           version: existingCount + 1,
           originalFileKey: fileKey,
@@ -68,25 +67,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await tx.subRequest.update({
         where: { id },
         data: {
-          status: 'AWAITING_GOLAB_REVIEW',
           testingCompletedAt: new Date(),
         },
       });
 
-      await tx.statusTransition.create({
-        data: {
-          subRequestId: id,
-          fromStatus: subRequest.status,
-          toStatus: 'AWAITING_GOLAB_REVIEW',
-          triggeredBy: 'lab-user',
-          reason: `Certificate uploaded: ${file.name}`,
-        },
-      });
-
-      return certificate;
+      return cert;
     });
 
-    return NextResponse.json(result, { status: 201 });
+    await executeTransition({
+      entityType: 'SubRequest',
+      entityId: id,
+      targetStatus: 'AWAITING_GOLAB_REVIEW',
+      triggeredBy: { userId: user.id, role: user.role, type: 'user' },
+      reason: `Certificate uploaded: ${certificate.fileName}`,
+    });
+
+    return NextResponse.json(certificate, { status: 201 });
   } catch (error) {
     console.error('Failed to upload certificate:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
