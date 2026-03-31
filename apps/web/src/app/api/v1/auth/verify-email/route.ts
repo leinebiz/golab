@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { checkRateLimit, rateLimitResponse } from '@/lib/security/rate-limiter';
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const { allowed, resetAt } = checkRateLimit(ip, 'auth');
+  if (!allowed) return rateLimitResponse(resetAt);
+
   try {
     const body = await request.json();
     const { token } = body;

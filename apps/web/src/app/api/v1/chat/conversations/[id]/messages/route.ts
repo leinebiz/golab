@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth/config';
 import { generateChatResponse } from '@/lib/rag/pipeline';
 import { logger } from '@/lib/observability/logger';
+
+const MessageSchema = z.object({
+  content: z.string().min(1, 'Message cannot be empty').max(10000, 'Message too long'),
+  escalate: z.boolean().optional(),
+});
 
 /** POST /api/v1/chat/conversations/[id]/messages - Send a message and get AI response */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -28,14 +34,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const body = await request.json();
-  const content = typeof body.content === 'string' ? body.content.trim() : '';
-
+  const parsed = MessageSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+  const content = parsed.data.content.trim();
   if (!content) {
     return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
   }
 
   // Handle escalation request
-  if (body.escalate) {
+  if (parsed.data.escalate) {
     const escalationMessage = await prisma.chatMessage.create({
       data: {
         conversationId,
@@ -66,12 +75,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     },
   });
 
-  // Get conversation history
+  // Get conversation history (latest 50 messages to bound context size)
   const history = await prisma.chatMessage.findMany({
     where: { conversationId },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
     select: { role: true, content: true },
   });
+  history.reverse();
 
   const conversationHistory = history
     .filter((m: { role: string; content: string }) => m.role === 'user' || m.role === 'assistant')
