@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+const MS_PER_HOUR = 1000 * 60 * 60;
+
+interface WaybillRow {
+  collectedAt: Date | null;
+  deliveredAt: Date | null;
+  estimatedDelivery: Date | null;
+}
+
+interface SubRequestRow {
+  testingStartedAt: Date | null;
+  testingCompletedAt: Date | null;
+  expectedCompletionAt: Date | null;
+}
+
+/** Compute the average hours between two Date fields across a list of records. */
+function avgHoursBetween<T>(
+  records: T[],
+  getStart: (r: T) => Date | null,
+  getEnd: (r: T) => Date | null,
+): number {
+  let total = 0;
+  let count = 0;
+  for (const r of records) {
+    const start = getStart(r);
+    const end = getEnd(r);
+    if (start && end) {
+      total += (end.getTime() - start.getTime()) / MS_PER_HOUR;
+      count++;
+    }
+  }
+  return count > 0 ? Math.round((total / count) * 10) / 10 : 0;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
@@ -20,6 +53,8 @@ export async function GET(request: NextRequest) {
       totalOrganizations,
       revenueResult,
       prevRevenueResult,
+      deliveredWaybills,
+      completedSubRequests,
     ] = await Promise.all([
       prisma.request.count({ where: { createdAt: { gte: since } } }),
       prisma.request.count({
@@ -46,10 +81,22 @@ export async function GET(request: NextRequest) {
         where: { status: 'PAID', paidAt: { gte: prevSince, lt: since } },
         _sum: { totalAmount: true },
       }),
+      prisma.waybill.findMany({
+        where: { deliveredAt: { not: null, gte: since } },
+        select: { collectedAt: true, deliveredAt: true, estimatedDelivery: true },
+      }),
+      prisma.subRequest.findMany({
+        where: { testingCompletedAt: { not: null, gte: since } },
+        select: {
+          testingStartedAt: true,
+          testingCompletedAt: true,
+          expectedCompletionAt: true,
+        },
+      }),
     ]);
 
-    const revenue = Number(revenueResult._sum.totalAmount ?? 0);
-    const prevRevenue = Number(prevRevenueResult._sum.totalAmount ?? 0);
+    const revenue = revenueResult._sum.totalAmount?.toString() ?? '0.00';
+    const prevRevenue = prevRevenueResult._sum.totalAmount?.toString() ?? '0.00';
 
     function calcChange(current: number, previous: number) {
       if (previous === 0)
@@ -63,7 +110,36 @@ export async function GET(request: NextRequest) {
 
     const requestChange = calcChange(totalRequests, prevTotalRequests);
     const completedChange = calcChange(completedRequests, prevCompletedRequests);
-    const revenueChange = calcChange(revenue, prevRevenue);
+    const revenueChange = calcChange(parseFloat(revenue), parseFloat(prevRevenue));
+
+    // Courier performance KPIs
+    const waybills = deliveredWaybills as WaybillRow[];
+    const totalDelivered = waybills.length;
+    const onTimeCount = waybills.filter(
+      (w) => w.deliveredAt && w.estimatedDelivery && w.deliveredAt <= w.estimatedDelivery,
+    ).length;
+    const courierOnTimeRate = totalDelivered > 0 ? onTimeCount / totalDelivered : 0;
+    const courierAvgDeliveryHours = avgHoursBetween(
+      waybills,
+      (w) => w.collectedAt,
+      (w) => w.deliveredAt,
+    );
+
+    // Lab turnaround KPIs
+    const subRequests = completedSubRequests as SubRequestRow[];
+    const totalCompleted = subRequests.length;
+    const slaCompliantCount = subRequests.filter(
+      (sr) =>
+        sr.testingCompletedAt &&
+        sr.expectedCompletionAt &&
+        sr.testingCompletedAt <= sr.expectedCompletionAt,
+    ).length;
+    const labSlaComplianceRate = totalCompleted > 0 ? slaCompliantCount / totalCompleted : 0;
+    const labAvgTurnaroundHours = avgHoursBetween(
+      subRequests,
+      (sr) => sr.testingStartedAt,
+      (sr) => sr.testingCompletedAt,
+    );
 
     return NextResponse.json({
       kpis: [
@@ -91,7 +167,7 @@ export async function GET(request: NextRequest) {
         {
           key: 'revenue',
           label: 'Revenue (ZAR)',
-          value: revenue.toLocaleString('en-ZA', { minimumFractionDigits: 2 }),
+          value: revenue,
           trend: revenueChange.trend,
           changePercent: revenueChange.percent,
         },
@@ -99,6 +175,34 @@ export async function GET(request: NextRequest) {
           key: 'customers',
           label: 'Total Customers',
           value: totalOrganizations,
+          trend: 'flat' as const,
+          changePercent: 0,
+        },
+        {
+          key: 'courier_on_time_rate',
+          label: 'Courier On-Time Rate',
+          value: courierOnTimeRate,
+          trend: 'flat' as const,
+          changePercent: 0,
+        },
+        {
+          key: 'courier_avg_delivery_hours',
+          label: 'Avg Delivery Time (hours)',
+          value: courierAvgDeliveryHours,
+          trend: 'flat' as const,
+          changePercent: 0,
+        },
+        {
+          key: 'lab_sla_compliance_rate',
+          label: 'Lab SLA Compliance',
+          value: labSlaComplianceRate,
+          trend: 'flat' as const,
+          changePercent: 0,
+        },
+        {
+          key: 'lab_avg_turnaround_hours',
+          label: 'Avg Lab Turnaround (hours)',
+          value: labAvgTurnaroundHours,
           trend: 'flat' as const,
           changePercent: 0,
         },
