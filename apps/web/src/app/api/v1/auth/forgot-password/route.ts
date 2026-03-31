@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
+import crypto, { randomBytes } from 'crypto';
 import { prisma } from '@/lib/db';
 import { ForgotPasswordSchema } from '@golab/shared';
 
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     }
 
     const token = randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
     await prisma.auditLog.create({
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
         entityType: 'User',
         entityId: user.id,
         metadata: {
-          tokenHash: token,
+          tokenHash,
           expiresAt: expiresAt.toISOString(),
         },
       },
