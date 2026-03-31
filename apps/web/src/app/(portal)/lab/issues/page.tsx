@@ -47,7 +47,7 @@ async function getOpenIssues(): Promise<OpenIssue[]> {
       issueType: issue.issueType,
       comments: issue.comments,
       createdAt: issue.createdAt,
-      subReference: issue.subRequest.subReference,
+      subReference: issue.subRequest?.subReference ?? 'N/A',
     });
   }
   return items;

@@ -55,9 +55,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Issue count per lab
-    const issueSubIds = new Set(labIssues.map((i) => i.subRequestId));
+    const issueSubIds = labIssues
+      .map((i) => i.subRequestId)
+      .filter((id): id is string => id != null);
     const issueSubs = await prisma.subRequest.findMany({
-      where: { id: { in: Array.from(issueSubIds) } },
+      where: { id: { in: issueSubIds } },
       select: { laboratoryId: true },
     });
     const issuesByLab: Record<string, number> = {};

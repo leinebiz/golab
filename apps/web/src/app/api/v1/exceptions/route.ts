@@ -6,7 +6,7 @@ import { handleApiError } from '@/lib/api/errors';
 import { executeTransition } from '@/lib/workflow/engine';
 import { LogSampleIssueSchema } from '@golab/shared';
 
-const issueTypeEnum = LogSampleIssueSchema.shape.issueType;
+const issueTypeEnum = LogSampleIssueSchema._def.schema.shape.issueType;
 
 /**
  * GET /api/v1/exceptions
