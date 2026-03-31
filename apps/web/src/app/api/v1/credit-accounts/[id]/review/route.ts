@@ -64,26 +64,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!result.valid) {
         return NextResponse.json({ error: 'Invalid credit limit' }, { status: 400 });
       }
-      await prisma.creditAccount.update({
-        where: { id },
-        data: {
-          status: 'APPROVED',
-          creditLimit: result.limit,
-          availableCredit: result.limit,
-          reviewedBy: user.id,
-          reviewedAt: new Date(),
-          reviewNotes: notes ?? null,
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.creditAccount.update({
+          where: { id },
+          data: {
+            status: 'APPROVED',
+            creditLimit: result.limit,
+            availableCredit: result.limit,
+            reviewedBy: user.id,
+            reviewedAt: new Date(),
+            reviewNotes: notes ?? null,
+          },
+        });
       });
     } else {
-      await prisma.creditAccount.update({
-        where: { id },
-        data: {
-          status: 'DECLINED',
-          reviewedBy: user.id,
-          reviewedAt: new Date(),
-          reviewNotes: notes ?? null,
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.creditAccount.update({
+          where: { id },
+          data: {
+            status: 'DECLINED',
+            reviewedBy: user.id,
+            reviewedAt: new Date(),
+            reviewNotes: notes ?? null,
+          },
+        });
       });
     }
 

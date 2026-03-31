@@ -22,6 +22,7 @@ export const CreateRequestSchema = z.object({
   preferredLabId: z.string().cuid().optional(),
   turnaroundType: z.enum(['STANDARD', 'EXPEDITED']),
   specialInstructions: z.string().max(2000).optional(),
+  sampleType: z.string().max(100).optional(),
 });
 
 export type CreateRequestInput = z.infer<typeof CreateRequestSchema>;

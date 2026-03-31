@@ -432,6 +432,7 @@ model Request {
   turnaroundType      TurnaroundType @default(STANDARD)
   collectionAddressId String?
   specialInstructions String?
+  sampleType          String?
 
   subRequests       SubRequest[]
   quote             Quote?
@@ -567,7 +568,7 @@ model Payment {
   currency          String        @default("ZAR")
   status            PaymentStatus @default(PENDING)
   provider          String        @default("stripe")
-  providerPaymentId String?
+  providerPaymentId String?       @unique
   providerData      Json?
   confirmedAt       DateTime?
   failedReason      String?
