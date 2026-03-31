@@ -31,6 +31,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       );
     }
 
+    // Enforce quote expiry — reject acceptance of expired quotes
+    const quote = await prisma.quote.findUnique({ where: { requestId: id } });
+    if (!quote) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+    }
+    if (quote.expiresAt < new Date()) {
+      return NextResponse.json(
+        { error: 'Quote has expired. Please request a new quote.' },
+        { status: 400 },
+      );
+    }
+
     await executeTransition({
       entityType: 'Request',
       entityId: id,
