@@ -27,6 +27,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
+    const contentLength = parseInt(request.headers.get('content-length') ?? '0', 10);
+    if (contentLength > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Request too large' }, { status: 413 });
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 

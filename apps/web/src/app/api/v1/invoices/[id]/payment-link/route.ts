@@ -59,8 +59,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       );
     }
 
-    // Convert Decimal totalAmount to cents for Stripe
-    const totalAmountCents = Math.round(Number(invoice.totalAmount) * 100);
+    const totalAmountCents = Math.round(parseFloat(invoice.totalAmount.toString()) * 100);
 
     const paymentResult = await createPaymentLink({
       invoiceId: invoice.id,

@@ -48,7 +48,6 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     );
   }
 
-  // Execute guard if present
   const context: TransitionContext = {
     entityId,
     entityType,
@@ -58,16 +57,33 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     metadata,
   };
 
-  if (transition.guard) {
-    const allowed = await transition.guard(context);
-    if (!allowed) {
-      throw new Error(`Guard rejected transition: ${currentStatus} → ${targetStatus}`);
-    }
-  }
-
-  // Perform the transition in a transaction
+  // Perform guard check and transition in a single transaction to prevent TOCTOU races
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await prisma.$transaction(async (tx: any) => {
+    // Re-verify current status inside transaction (optimistic lock)
+    let verifiedStatus: string;
+    if (entityType === 'Request') {
+      const entity = await tx.request.findUniqueOrThrow({ where: { id: entityId } });
+      verifiedStatus = entity.status;
+    } else {
+      const entity = await tx.subRequest.findUniqueOrThrow({ where: { id: entityId } });
+      verifiedStatus = entity.status;
+    }
+
+    if (verifiedStatus !== currentStatus) {
+      throw new Error(
+        `Status changed concurrently: expected ${currentStatus}, found ${verifiedStatus}`,
+      );
+    }
+
+    // Execute guard inside transaction for consistent reads
+    if (transition.guard) {
+      const allowed = await transition.guard(context);
+      if (!allowed) {
+        throw new Error(`Guard rejected transition: ${currentStatus} → ${targetStatus}`);
+      }
+    }
+
     // Update status
     if (entityType === 'Request') {
       await tx.request.update({
@@ -94,14 +110,17 @@ export async function executeTransition(params: TransitionParams): Promise<void>
     });
   });
 
-  // Execute onTransition callback (non-blocking)
   if (transition.onTransition) {
-    transition.onTransition(context).catch((err) => {
-      logger.error(
-        { entityType, entityId, fromStatus: currentStatus, toStatus: targetStatus, error: err },
-        'workflow.onTransition.failed',
-      );
+    const logContext = { entityType, entityId, fromStatus: currentStatus, toStatus: targetStatus };
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('onTransition timed out after 30s')), 30_000);
     });
+    Promise.race([transition.onTransition(context), timeoutPromise])
+      .catch((err) => {
+        logger.error({ ...logContext, error: err }, 'workflow.onTransition.failed');
+      })
+      .finally(() => clearTimeout(timeoutId));
   }
 
   logger.info(
