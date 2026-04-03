@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth, requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +9,7 @@ interface RouteContext {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    await requireAuth();
     const { id } = await context.params;
 
     const disclaimer = await prisma.disclaimer.findUnique({
@@ -25,14 +28,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json(disclaimer);
-  } catch (error) {
-    console.error('Failed to fetch disclaimer:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'disclaimers.get.failed');
   }
 }
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    await requireRole(['GOLAB_ADMIN']);
     const { id } = await context.params;
     const body = await request.json();
     const { title, content, isActive } = body;
@@ -60,8 +63,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error('Failed to update disclaimer:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'disclaimers.update.failed');
   }
 }

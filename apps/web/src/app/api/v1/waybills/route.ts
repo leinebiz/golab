@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@golab/database';
-import { auth } from '@/lib/auth/config';
+import { requireAuth, requireRole } from '@/lib/auth/middleware';
 import { getCourierProvider } from '@/lib/integrations/courier';
 import type { Address } from '@/lib/integrations/courier';
 import { executeTransition } from '@/lib/workflow/engine';
+import { handleApiError } from '@/lib/api/errors';
 import { createRequestLogger } from '@/lib/observability/logger';
 
 // ============================================================
@@ -11,29 +12,34 @@ import { createRequestLogger } from '@/lib/observability/logger';
 // ============================================================
 
 export async function GET(request: NextRequest) {
-  const subRequestId = request.nextUrl.searchParams.get('subRequestId');
+  try {
+    await requireAuth();
+    const subRequestId = request.nextUrl.searchParams.get('subRequestId');
 
-  const where = subRequestId ? { subRequestId } : {};
+    const where = subRequestId ? { subRequestId } : {};
 
-  const waybills = await prisma.waybill.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      waybillNumber: true,
-      courierProvider: true,
-      status: true,
-      collectionAddress: true,
-      deliveryAddress: true,
-      estimatedDelivery: true,
-      collectedAt: true,
-      deliveredAt: true,
-      trackingEvents: true,
-      createdAt: true,
-    },
-  });
+    const waybills = await prisma.waybill.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        waybillNumber: true,
+        courierProvider: true,
+        status: true,
+        collectionAddress: true,
+        deliveryAddress: true,
+        estimatedDelivery: true,
+        collectedAt: true,
+        deliveredAt: true,
+        trackingEvents: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json({ data: waybills });
+    return NextResponse.json({ data: waybills });
+  } catch (err) {
+    return handleApiError(err, 'waybills.list.failed');
+  }
 }
 
 // ============================================================
@@ -41,15 +47,13 @@ export async function GET(request: NextRequest) {
 // ============================================================
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  let session;
+  try {
+    session = await requireRole(['GOLAB_ADMIN', 'SYSTEM']);
+  } catch (err) {
+    return handleApiError(err, 'waybill.create.auth_failed');
   }
-
   const user = session.user as { id: string; role: string };
-  if (!['GOLAB_ADMIN', 'SYSTEM'].includes(user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const requestId = crypto.randomUUID();
   const reqLogger = createRequestLogger(requestId, user.id);

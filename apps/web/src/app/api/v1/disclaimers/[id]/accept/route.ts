@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +9,7 @@ interface RouteContext {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    await requireAuth();
     const { id } = await context.params;
     const body = await request.json();
     const { organizationId, acceptedById, ipAddress } = body;
@@ -47,8 +50,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(acceptance, { status: 201 });
-  } catch (error) {
-    console.error('Failed to record disclaimer acceptance:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'disclaimers.accept.failed');
   }
 }

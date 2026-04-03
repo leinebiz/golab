@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { LogSampleIssueSchema } from '@golab/shared';
 import { dispatchNotification } from '@/lib/notifications/dispatcher';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'LAB_ADMIN', 'LAB_TECHNICIAN']);
     const { id } = await params;
     const body = await request.json();
 
@@ -86,8 +89,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     return NextResponse.json(result, { status: 201 });
-  } catch (error) {
-    console.error('Failed to log sample issue:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'sub-requests.log-issue.failed');
   }
 }

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAuth();
     const { id } = await params;
 
     const subRequest = await prisma.subRequest.findUnique({
@@ -36,8 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
 
     return NextResponse.json(subRequest);
-  } catch (error) {
-    console.error('Failed to fetch sub-request:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'sub-requests.get.failed');
   }
 }
