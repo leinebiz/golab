@@ -3,9 +3,11 @@ import { prisma } from '@golab/database';
 import { requireAuth } from '@/lib/auth/middleware';
 import { executeTransition } from '@/lib/workflow/engine';
 import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const start = performance.now();
   try {
     const session = await requireAuth();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +53,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       reason: 'Customer accepted quote',
     });
 
-    const reqLogger = createRequestLogger(crypto.randomUUID(), userId);
+    const reqLogger = createRequestLogger(
+      _req.headers.get('x-request-id') ?? crypto.randomUUID(),
+      userId,
+    );
 
     // Auto-create invoice from quote
     const reqWithQuote = await prisma.request.findUnique({
@@ -131,8 +136,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       }).catch((err) => reqLogger.error({ error: err }, 'notification.invoice_generated.failed'));
     }
 
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'requests.accept',
+      status: 'success',
+    });
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'requests.accept',
+      status: 'error',
+    });
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
 import { DefaultToleranceSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
@@ -34,6 +35,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
 
     return NextResponse.json(tolerances);
@@ -41,7 +43,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to fetch tolerances:', error);
+    logger.error({ error }, 'tolerances.fetch.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -112,6 +114,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
 
     return NextResponse.json(tolerances);
@@ -119,7 +122,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to update tolerances:', error);
+    logger.error({ error }, 'tolerances.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

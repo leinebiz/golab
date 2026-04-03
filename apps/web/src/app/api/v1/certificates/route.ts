@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Org-scope: resolve current user for role-based filtering
     const session = await auth();
     const user = session!.user as { id: string; role: string; organizationId: string };
-    const requestId = crypto.randomUUID();
+    const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
     const reqLogger = createRequestLogger(requestId, user.id);
 
     const where = buildCertificateWhere({

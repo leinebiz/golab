@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { CreateAddressSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 interface RouteContext {
   params: Promise<{ id: string; addressId: string }>;
@@ -46,7 +47,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json(address);
   } catch (error) {
-    console.error('Failed to update address:', error);
+    logger.error({ error }, 'address.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -68,7 +69,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete address:', error);
+    logger.error({ error }, 'address.delete.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

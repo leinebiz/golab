@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   }
   const user = session.user as { id: string; role: string };
 
-  const requestId = crypto.randomUUID();
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const reqLogger = createRequestLogger(requestId, user.id);
 
   let body: { subRequestId: string };

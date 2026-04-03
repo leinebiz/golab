@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     role: string;
     organizationId: string;
   };
-  const requestId = crypto.randomUUID();
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const reqLogger = createRequestLogger(requestId, user.id);
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     role: string;
     organizationId: string;
   };
-  const postRequestId = crypto.randomUUID();
+  const postRequestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const postLogger = createRequestLogger(postRequestId, user.id);
   const isFinanceOrAdmin = ['GOLAB_ADMIN', 'GOLAB_FINANCE', 'SYSTEM'].includes(user.role);
   if (!isFinanceOrAdmin) {

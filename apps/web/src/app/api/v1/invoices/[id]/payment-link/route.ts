@@ -4,13 +4,15 @@ import { requireRole } from '@/lib/auth/middleware';
 import { createPaymentLink } from '@/lib/integrations/stripe/provider';
 import { executeTransition } from '@/lib/workflow/engine';
 import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const start = performance.now();
   try {
     const session = await requireRole(['GOLAB_ADMIN', 'GOLAB_FINANCE', 'SYSTEM']);
     const user = session.user as { id: string; role: string };
     const { id } = await params;
-    const requestId = crypto.randomUUID();
+    const requestId = _req.headers.get('x-request-id') ?? crypto.randomUUID();
     const reqLogger = createRequestLogger(requestId, user.id);
 
     const invoice = await prisma.invoice.findUnique({
@@ -95,9 +97,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     }
 
     reqLogger.info({ invoiceId: id, invoiceNumber: invoice.invoiceNumber }, 'payment-link.created');
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'invoices.payment-link',
+      status: 'success',
+    });
 
     return NextResponse.json({ data: { paymentUrl: paymentResult.paymentUrl } });
   } catch (error: unknown) {
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'invoices.payment-link',
+      status: 'error',
+    });
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

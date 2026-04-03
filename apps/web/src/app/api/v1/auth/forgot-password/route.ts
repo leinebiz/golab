@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto, { randomBytes } from 'crypto';
 import { prisma } from '@/lib/db';
 import { ForgotPasswordSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
   try {
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
     return successResponse;
   } catch (error) {
-    console.error('Forgot password error:', error);
+    logger.error({ error }, 'auth.forgot_password.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }
