@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 const MS_PER_HOUR = 1000 * 60 * 60;
 
@@ -36,6 +38,7 @@ function avgHoursBetween<T>(
 
 export async function GET(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER']);
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
     const since = new Date();
@@ -96,7 +99,6 @@ export async function GET(request: NextRequest) {
     ]);
 
     const revenue = revenueResult._sum.totalAmount?.toString() ?? '0.00';
-    const prevRevenue = prevRevenueResult._sum.totalAmount?.toString() ?? '0.00';
 
     function calcChange(current: number, previous: number) {
       if (previous === 0)
@@ -110,7 +112,10 @@ export async function GET(request: NextRequest) {
 
     const requestChange = calcChange(totalRequests, prevTotalRequests);
     const completedChange = calcChange(completedRequests, prevCompletedRequests);
-    const revenueChange = calcChange(parseFloat(revenue), parseFloat(prevRevenue));
+    const revenueChange = calcChange(
+      Number(revenueResult._sum.totalAmount ?? 0),
+      Number(prevRevenueResult._sum.totalAmount ?? 0),
+    );
 
     // Courier performance KPIs
     const waybills = deliveredWaybills as WaybillRow[];
@@ -210,7 +215,6 @@ export async function GET(request: NextRequest) {
       period: { days, since: since.toISOString() },
     });
   } catch (error) {
-    console.error('Failed to fetch KPIs:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'reports.kpis.failed');
   }
 }

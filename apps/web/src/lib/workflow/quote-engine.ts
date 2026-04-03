@@ -6,32 +6,7 @@
  * precision errors. Values are converted to/from string representation
  * at boundaries only.
  */
-
-/**
- * Convert a decimal string (e.g. "150.00") to integer cents.
- * Handles up to 2 decimal places.
- */
-function toCents(value: string): number {
-  const parts = value.split('.');
-  const whole = parseInt(parts[0], 10) || 0;
-  let frac = 0;
-  if (parts[1]) {
-    const fracStr = parts[1].padEnd(2, '0').slice(0, 2);
-    frac = parseInt(fracStr, 10);
-  }
-  return whole * 100 + (whole < 0 ? -frac : frac);
-}
-
-/**
- * Convert integer cents back to a decimal string with 2 decimal places.
- */
-function fromCents(cents: number): string {
-  const sign = cents < 0 ? '-' : '';
-  const abs = Math.abs(cents);
-  const whole = Math.floor(abs / 100);
-  const frac = abs % 100;
-  return `${sign}${whole}.${frac.toString().padStart(2, '0')}`;
-}
+import { toCents, fromCents, addDecimalStrings as add } from '@/lib/finance/decimal';
 
 /**
  * Multiply two decimal strings and return result as decimal string.
@@ -44,13 +19,6 @@ function multiply(a: string, b: string): string {
   // Need to round to avoid fractional cents
   const resultCents = Math.round((ca * cb) / 100);
   return fromCents(resultCents);
-}
-
-/**
- * Add two decimal strings.
- */
-function add(a: string, b: string): string {
-  return fromCents(toCents(a) + toCents(b));
 }
 
 /** South African VAT rate */

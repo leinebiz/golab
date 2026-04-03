@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER']);
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
     const since = new Date();
@@ -100,7 +103,6 @@ export async function GET(request: NextRequest) {
       period: { days, since: since.toISOString() },
     });
   } catch (error) {
-    console.error('Failed to fetch request analytics:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'reports.requests.failed');
   }
 }

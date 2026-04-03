@@ -1,19 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@golab/database';
+import { requireAuth } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
-export async function GET(request: NextRequest) {
-  const userId = request.headers.get('x-user-id');
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET() {
+  try {
+    const session = await requireAuth();
+    const userId = session.user!.id!;
+
+    const count = await prisma.notification.count({
+      where: {
+        userId,
+        channel: 'PORTAL',
+        readAt: null,
+      },
+    });
+
+    return NextResponse.json({ count });
+  } catch (error) {
+    return handleApiError(error, 'notifications.unreadCount.failed');
   }
-
-  const count = await prisma.notification.count({
-    where: {
-      userId,
-      channel: 'PORTAL',
-      readAt: null,
-    },
-  });
-
-  return NextResponse.json({ count });
 }
