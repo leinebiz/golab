@@ -36,6 +36,11 @@ export const REQUEST_TRANSITIONS: StateTransition<string>[] = [
     from: 'PENDING_CUSTOMER_REVIEW',
     to: 'ACCEPTED_BY_CUSTOMER',
     roles: ['CUSTOMER_ADMIN', 'CUSTOMER_USER'],
+    guard: async (ctx) => {
+      const quote = await prisma.quote.findUnique({ where: { requestId: ctx.entityId } });
+      if (!quote || !quote.expiresAt) return false;
+      return quote.expiresAt > new Date();
+    },
   },
   {
     from: 'PENDING_CUSTOMER_REVIEW',
@@ -65,7 +70,9 @@ export const REQUEST_TRANSITIONS: StateTransition<string>[] = [
       if (!credit || credit.status !== 'APPROVED') return false;
       const invoice = await prisma.invoice.findUnique({ where: { requestId: ctx.entityId } });
       if (!invoice) return false;
-      return Number(credit.availableCredit) >= Number(invoice.totalAmount);
+      // Compare as integer cents to avoid float precision loss (Decimal(12,2) values)
+      const toCents = (v: unknown) => Math.round(parseFloat(String(v ?? '0')) * 100);
+      return toCents(credit.availableCredit) >= toCents(invoice.totalAmount);
     },
   },
   {

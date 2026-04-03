@@ -36,7 +36,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (!quote) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
-    if (quote.expiresAt < new Date()) {
+    if (quote.expiresAt <= new Date()) {
       return NextResponse.json(
         { error: 'Quote has expired. Please request a new quote.' },
         { status: 400 },

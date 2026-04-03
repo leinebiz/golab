@@ -70,19 +70,6 @@ async function handleCheckoutCompleted(parsed: {
 }) {
   if (!parsed.invoiceId) return;
 
-  // Idempotency: check if payment already recorded for this session
-  const existingPayment = await prisma.payment.findFirst({
-    where: { providerPaymentId: parsed.sessionId },
-  });
-
-  if (existingPayment) {
-    logger.info(
-      { sessionId: parsed.sessionId, paymentId: existingPayment.id },
-      'stripe.webhook.duplicate_ignored',
-    );
-    return;
-  }
-
   const invoice = await prisma.invoice.findUnique({
     where: { id: parsed.invoiceId },
     include: {
@@ -101,7 +88,20 @@ async function handleCheckoutCompleted(parsed: {
       ? (parsed.amountTotal / 100).toFixed(2)
       : invoice.totalAmount.toString();
 
-  await prisma.$transaction(async (tx) => {
+  const wasDuplicate = await prisma.$transaction(async (tx) => {
+    // Idempotency: check inside transaction to prevent race conditions
+    const existingPayment = await tx.payment.findFirst({
+      where: { providerPaymentId: parsed.sessionId },
+    });
+
+    if (existingPayment) {
+      logger.info(
+        { sessionId: parsed.sessionId, paymentId: existingPayment.id },
+        'stripe.webhook.duplicate_ignored',
+      );
+      return true;
+    }
+
     // Record the payment
     await tx.payment.create({
       data: {
@@ -128,7 +128,11 @@ async function handleCheckoutCompleted(parsed: {
         paymentReference: parsed.sessionId,
       },
     });
+
+    return false;
   });
+
+  if (wasDuplicate) return;
 
   // Trigger workflow transition: AWAITING_COD_PAYMENT -> PAYMENT_RECEIVED
   if (invoice.request.status === 'AWAITING_COD_PAYMENT') {

@@ -76,18 +76,28 @@ export async function bookWaybillsForRequest(requestId: string): Promise<void> {
         packageDescription: `Laboratory samples for ${request.reference}`,
       });
 
-      await prisma.waybill.create({
-        data: {
-          subRequestId: sub.id,
-          waybillNumber: pickupResult.waybillNumber,
-          courierProvider: 'mock',
-          courierBookingId: pickupResult.courierBookingId,
-          collectionAddress: JSON.parse(JSON.stringify(collectionAddress)),
-          deliveryAddress: JSON.parse(JSON.stringify(deliveryAddress)),
-          status: 'BOOKED',
-          estimatedDelivery: pickupResult.estimatedDelivery,
-          trackingEvents: [],
-        },
+      // Guard waybill creation in a transaction to prevent partial state
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await prisma.$transaction(async (tx: any) => {
+        // Re-check idempotency inside transaction
+        const existingWaybill = await tx.waybill.findUnique({
+          where: { subRequestId: sub.id },
+        });
+        if (existingWaybill) return;
+
+        await tx.waybill.create({
+          data: {
+            subRequestId: sub.id,
+            waybillNumber: pickupResult.waybillNumber,
+            courierProvider: 'mock',
+            courierBookingId: pickupResult.courierBookingId,
+            collectionAddress: JSON.parse(JSON.stringify(collectionAddress)),
+            deliveryAddress: JSON.parse(JSON.stringify(deliveryAddress)),
+            status: 'BOOKED',
+            estimatedDelivery: pickupResult.estimatedDelivery,
+            trackingEvents: [],
+          },
+        });
       });
 
       // Transition: PICKUP_REQUESTED -> WAYBILL_AVAILABLE

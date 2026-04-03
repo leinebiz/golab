@@ -6,6 +6,7 @@
  */
 
 import { logger } from '@/lib/observability/logger';
+import { fetchWithTimeout } from '@/lib/security/fetch-with-timeout';
 
 export interface WhatsAppMessage {
   to: string;
@@ -57,13 +58,14 @@ export async function sendWhatsAppMessage(message: WhatsAppMessage): Promise<Wha
       ContentVariables: JSON.stringify(message.variables),
     });
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: body.toString(),
+      timeoutMs: 10_000,
     });
 
     if (!response.ok) {
