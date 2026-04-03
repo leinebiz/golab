@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireRole } from '@/lib/auth/middleware';
 import { executeTransition } from '@/lib/workflow/engine';
+import { logger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const start = performance.now();
   try {
     const session = await requireRole(['LAB_STAFF', 'LAB_MANAGER', 'ADMIN']);
     const user = session.user as { id: string; role: string };
@@ -82,9 +85,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       reason: `Certificate uploaded: ${certificate.fileName}`,
     });
 
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'sub-requests.upload-certificate',
+      status: 'success',
+    });
     return NextResponse.json(certificate, { status: 201 });
   } catch (error) {
-    console.error('Failed to upload certificate:', error);
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'sub-requests.upload-certificate',
+      status: 'error',
+    });
+    logger.error({ error }, 'certificate.upload.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

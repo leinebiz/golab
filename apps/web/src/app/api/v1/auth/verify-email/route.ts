@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { checkRateLimit, rateLimitResponse } from '@/lib/security/rate-limiter';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ message: 'Email verified successfully' });
   } catch (error) {
-    console.error('Email verification error:', error);
+    logger.error({ error }, 'auth.verify_email.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

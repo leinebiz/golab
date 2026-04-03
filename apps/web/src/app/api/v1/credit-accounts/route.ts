@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth/config';
 import { createRequestLogger } from '@/lib/observability/logger';
 import { metrics } from '@/lib/observability/metrics';
 
-export async function GET() {
-  const requestId = crypto.randomUUID();
+export async function GET(request: NextRequest) {
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -4,6 +4,7 @@ import { generatePdf, storePdf } from '@/lib/pdf/generator';
 import { requireRole } from '@/lib/auth/middleware';
 import { prisma } from '@golab/database';
 import { RequestForm, Quote, Invoice, Certificate } from '@golab/pdf-templates';
+import { logger } from '@/lib/observability/logger';
 import type {
   RequestFormData,
   QuoteData,
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    logger.error({ error }, 'document.generate.failed');
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: 'Failed to generate document', details: message },

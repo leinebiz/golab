@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { logger } from '@/lib/observability/logger';
 
 const ADMIN_ROLES = ['GOLAB_ADMIN', 'GOLAB_REVIEWER', 'GOLAB_FINANCE'];
 
@@ -134,7 +135,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to update user:', error);
+    logger.error({ error }, 'user.update.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -162,7 +163,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     if (message === 'Unauthorized') return NextResponse.json({ error: message }, { status: 401 });
     if (message === 'Forbidden') return NextResponse.json({ error: message }, { status: 403 });
-    console.error('Failed to deactivate user:', error);
+    logger.error({ error }, 'user.deactivate.failed');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

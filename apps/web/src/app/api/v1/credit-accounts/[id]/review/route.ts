@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const { id } = await params;
-  const requestId = crypto.randomUUID();
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   const reqLogger = createRequestLogger(requestId, user.id);
 
   try {

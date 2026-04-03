@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { ResetPasswordSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
 
 export async function POST(request: Request) {
   try {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
       message: 'Password has been reset successfully.',
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error({ error }, 'auth.reset_password.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

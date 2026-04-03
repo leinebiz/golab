@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { RegisterSchema } from '@golab/shared';
+import { logger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 
 export async function POST(request: Request) {
+  const start = performance.now();
   try {
     const body = await request.json();
     const parsed = RegisterSchema.safeParse(body);
@@ -70,6 +73,10 @@ export async function POST(request: Request) {
       return { user, organization };
     });
 
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'auth.register',
+      status: 'success',
+    });
     return NextResponse.json(
       {
         message: 'Registration successful. Please check your email to verify your account.',
@@ -78,7 +85,11 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'auth.register',
+      status: 'error',
+    });
+    logger.error({ error }, 'auth.register.failed');
     return NextResponse.json({ message: 'An unexpected error occurred' }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@ import { CreateRequestSchema } from '@golab/shared';
 import { routeTests, type RoutableLab } from '@/lib/workflow/lab-routing';
 import { calculateQuote, type QuoteLabGroup } from '@/lib/workflow/quote-engine';
 import { createRequestLogger } from '@/lib/observability/logger';
+import { metrics } from '@/lib/observability/metrics';
 import { dispatchNotification } from '@/lib/notifications/dispatcher';
 
 export async function GET(req: NextRequest) {
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const start = performance.now();
   try {
     const session = await requireAuth();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
     const userId = user.id as string;
     const organizationId = user.organizationId as string;
 
-    const requestId = crypto.randomUUID();
+    const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
     const reqLogger = createRequestLogger(requestId, userId);
 
     const body = await req.json();
@@ -349,6 +351,10 @@ export async function POST(req: NextRequest) {
     }).catch((err) => reqLogger.error({ error: err }, 'notification.quote_ready.failed'));
 
     reqLogger.info({ requestId: result.id, reference: quote.referenceNumber }, 'request.created');
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'requests.create',
+      status: 'success',
+    });
 
     return NextResponse.json(
       {
@@ -370,6 +376,10 @@ export async function POST(req: NextRequest) {
       { status: 201 },
     );
   } catch (error: unknown) {
+    metrics.recordApiRequest(performance.now() - start, {
+      route: 'requests.create',
+      status: 'error',
+    });
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

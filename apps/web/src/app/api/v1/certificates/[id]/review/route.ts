@@ -25,7 +25,7 @@ const ACTION_TO_STATUS: Record<string, string> = {
  * APPROVED_FOR_RELEASE, then a system transition releases to customer.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const requestId = crypto.randomUUID();
+  const requestId = request.headers.get('x-request-id') ?? crypto.randomUUID();
   try {
     const session = await requirePermission('certificates', 'review');
     const { id } = await params;
