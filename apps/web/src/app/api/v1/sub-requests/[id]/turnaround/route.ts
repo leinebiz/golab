@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 const UpdateTurnaroundSchema = z.object({
   expectedCompletionAt: z.string().datetime().optional(),
@@ -10,6 +12,7 @@ const UpdateTurnaroundSchema = z.object({
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'LAB_ADMIN']);
     const { id } = await params;
     const body = await request.json();
 
@@ -81,8 +84,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     });
 
     return NextResponse.json(result);
-  } catch (error) {
-    console.error('Failed to update turnaround:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'sub-requests.turnaround.update.failed');
   }
 }

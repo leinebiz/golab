@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth, requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth();
     const { searchParams } = request.nextUrl;
     const activeOnly = searchParams.get('active') !== 'false';
 
@@ -24,14 +27,14 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ disclaimers });
-  } catch (error) {
-    console.error('Failed to fetch disclaimers:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'disclaimers.list.failed');
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN']);
     const body = await request.json();
     const { type, title, content } = body;
 
@@ -64,8 +67,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(disclaimer, { status: 201 });
-  } catch (error) {
-    console.error('Failed to create disclaimer:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'disclaimers.create.failed');
   }
 }

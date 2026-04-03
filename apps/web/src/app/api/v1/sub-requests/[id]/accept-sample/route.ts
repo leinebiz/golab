@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'LAB_ADMIN', 'LAB_TECHNICIAN']);
     const { id } = await params;
 
     const subRequest = await prisma.subRequest.findUnique({
@@ -47,8 +50,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error('Failed to accept sample:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    return handleApiError(err, 'sub-requests.accept-sample.failed');
   }
 }
