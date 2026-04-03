@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-
-/** Add two decimal-string values, returning a decimal string with 2 decimal places. */
-function addDecimalStrings(a: string, b: string): string {
-  return (parseFloat(a) + parseFloat(b)).toFixed(2);
-}
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
+import { toCents, addDecimalStrings } from '@/lib/finance/decimal';
 
 export async function GET(request: NextRequest) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER']);
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
     const since = new Date();
@@ -53,10 +52,10 @@ export async function GET(request: NextRequest) {
         acct.outstandingBalance?.toString() ?? '0.00',
       );
     }
-    const creditLimitNum = parseFloat(totalCreditLimit);
-    const utilizedNum = parseFloat(totalUtilized);
+    const creditLimitCents = toCents(totalCreditLimit);
+    const utilizedCents = toCents(totalUtilized);
     const creditUtilization =
-      creditLimitNum > 0 ? Math.round((utilizedNum / creditLimitNum) * 100 * 10) / 10 : 0;
+      creditLimitCents > 0 ? Math.round((utilizedCents / creditLimitCents) * 100 * 10) / 10 : 0;
 
     const revenueByDay: Record<string, string> = {};
     for (const inv of paidInvoices) {
@@ -95,7 +94,6 @@ export async function GET(request: NextRequest) {
       period: { days, since: since.toISOString() },
     });
   } catch (error) {
-    console.error('Failed to fetch finance metrics:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'reports.finance.failed');
   }
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireRole } from '@/lib/auth/middleware';
+import { handleApiError } from '@/lib/api/errors';
 
 interface RouteContext {
   params: Promise<{ type: string }>;
@@ -19,6 +21,7 @@ function toCsvRow(values: (string | number | null | undefined)[]): string {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    await requireRole(['GOLAB_ADMIN', 'GOLAB_REVIEWER']);
     const { type } = await context.params;
     const { searchParams } = request.nextUrl;
     const days = parseInt(searchParams.get('days') ?? '30', 10);
@@ -166,7 +169,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
       },
     });
   } catch (error) {
-    console.error('Failed to export report:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'reports.export.failed');
   }
 }
