@@ -17,6 +17,11 @@ interface SubRequestRow {
   expectedCompletionAt: Date | null;
 }
 
+interface PaidInvoiceRow {
+  issuedAt: Date | null;
+  paidAt: Date | null;
+}
+
 /** Compute the average hours between two Date fields across a list of records. */
 function avgHoursBetween<T>(
   records: T[],
@@ -58,6 +63,8 @@ export async function GET(request: NextRequest) {
       prevRevenueResult,
       deliveredWaybills,
       completedSubRequests,
+      paidInvoicesForTurnaround,
+      prevPaidInvoicesForTurnaround,
     ] = await Promise.all([
       prisma.request.count({ where: { createdAt: { gte: since } } }),
       prisma.request.count({
@@ -95,6 +102,14 @@ export async function GET(request: NextRequest) {
           testingCompletedAt: true,
           expectedCompletionAt: true,
         },
+      }),
+      prisma.invoice.findMany({
+        where: { status: 'PAID', paidAt: { not: null, gte: since } },
+        select: { issuedAt: true, paidAt: true },
+      }),
+      prisma.invoice.findMany({
+        where: { status: 'PAID', paidAt: { not: null, gte: prevSince, lt: since } },
+        select: { issuedAt: true, paidAt: true },
       }),
     ]);
 
@@ -145,6 +160,21 @@ export async function GET(request: NextRequest) {
       (sr) => sr.testingStartedAt,
       (sr) => sr.testingCompletedAt,
     );
+
+    // Payment turnaround KPI
+    const paidInvoices = paidInvoicesForTurnaround as PaidInvoiceRow[];
+    const prevPaidInvoices = prevPaidInvoicesForTurnaround as PaidInvoiceRow[];
+    const paymentTurnaroundHours = avgHoursBetween(
+      paidInvoices,
+      (inv) => inv.issuedAt,
+      (inv) => inv.paidAt,
+    );
+    const prevPaymentTurnaroundHours = avgHoursBetween(
+      prevPaidInvoices,
+      (inv) => inv.issuedAt,
+      (inv) => inv.paidAt,
+    );
+    const paymentTurnaroundChange = calcChange(paymentTurnaroundHours, prevPaymentTurnaroundHours);
 
     return NextResponse.json({
       kpis: [
@@ -210,6 +240,13 @@ export async function GET(request: NextRequest) {
           value: labAvgTurnaroundHours,
           trend: 'flat' as const,
           changePercent: 0,
+        },
+        {
+          key: 'payment_turnaround_hours',
+          label: 'Avg Payment Turnaround (hours)',
+          value: paymentTurnaroundHours,
+          trend: paymentTurnaroundChange.trend,
+          changePercent: paymentTurnaroundChange.percent,
         },
       ],
       period: { days, since: since.toISOString() },

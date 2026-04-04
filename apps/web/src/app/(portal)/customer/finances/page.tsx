@@ -18,6 +18,18 @@ interface InvoiceRow {
   request: { reference: string };
 }
 
+interface PaymentRow {
+  id: string;
+  amount: { toString(): string };
+  provider: string;
+  providerPaymentId: string | null;
+  confirmedAt: Date | null;
+  invoice: {
+    invoiceNumber: string;
+    request: { reference: string };
+  };
+}
+
 export default async function CustomerFinancesPage() {
   const session = await auth();
   if (!session?.user) {
@@ -29,7 +41,7 @@ export default async function CustomerFinancesPage() {
     redirect('/login');
   }
 
-  const [creditAccount, invoices] = await Promise.all([
+  const [creditAccount, invoices, payments] = await Promise.all([
     prisma.creditAccount.findUnique({
       where: { organizationId: user.organizationId },
     }),
@@ -43,6 +55,21 @@ export default async function CustomerFinancesPage() {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+    prisma.payment.findMany({
+      where: {
+        invoice: {
+          request: { organizationId: user.organizationId },
+        },
+        status: 'CONFIRMED',
+      },
+      include: {
+        invoice: {
+          select: { invoiceNumber: true, request: { select: { reference: true } } },
+        },
+      },
+      orderBy: { confirmedAt: 'desc' },
       take: 50,
     }),
   ]);
@@ -152,6 +179,55 @@ export default async function CustomerFinancesPage() {
                             Paid {formatDate(invoice.paidAt.toISOString())}
                           </span>
                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment History</CardTitle>
+          <CardDescription>Confirmed COD and credit payments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {payments.length === 0 ? (
+            <p className="text-sm text-gray-500">No payments recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-gray-500">
+                    <th className="pb-2 pr-4">Date</th>
+                    <th className="pb-2 pr-4">Invoice</th>
+                    <th className="pb-2 pr-4">Request</th>
+                    <th className="pb-2 pr-4">Amount</th>
+                    <th className="pb-2 pr-4">Provider</th>
+                    <th className="pb-2">Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment: PaymentRow) => (
+                    <tr key={payment.id} className="border-b">
+                      <td className="py-3 pr-4">
+                        {payment.confirmedAt ? formatDate(payment.confirmedAt.toISOString()) : '—'}
+                      </td>
+                      <td className="py-3 pr-4 font-medium">{payment.invoice.invoiceNumber}</td>
+                      <td className="py-3 pr-4">{payment.invoice.request.reference}</td>
+                      <td className="py-3 pr-4 font-mono">
+                        {formatZAR(payment.amount.toString())}
+                      </td>
+                      <td className="py-3 pr-4">{payment.provider}</td>
+                      <td className="py-3 font-mono text-xs text-gray-500">
+                        {payment.providerPaymentId
+                          ? payment.providerPaymentId.length > 16
+                            ? `${payment.providerPaymentId.slice(0, 16)}...`
+                            : payment.providerPaymentId
+                          : '—'}
                       </td>
                     </tr>
                   ))}
