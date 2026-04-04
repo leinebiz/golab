@@ -53,6 +53,7 @@ export const GOLAB_ADMIN_NAV: NavItem[] = [
   { label: 'Customers', href: '/admin/customers', icon: 'Users' },
   { label: 'KPIs & Reports', href: '/admin/reports', icon: 'BarChart3' },
   { label: 'Disclaimers', href: '/admin/disclaimers', icon: 'FileText' },
+  { label: 'Audit Trail', href: '/admin/audit', icon: 'Shield' },
 ];
 
 export const FINANCE_NAV: NavItem[] = [
