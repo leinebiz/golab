@@ -65,6 +65,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Cap individual queries to avoid unbounded memory on large tables
+    const queryLimit = 500;
+
     const [auditLogs, auditCount] = await Promise.all([
       prisma.auditLog.findMany({
         where: auditWhere,
@@ -72,6 +75,7 @@ export async function GET(request: NextRequest) {
           actor: { select: { id: true, name: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: queryLimit,
       }),
       prisma.auditLog.count({ where: auditWhere }),
     ]);
@@ -101,6 +105,7 @@ export async function GET(request: NextRequest) {
           subRequest: { select: { id: true, subReference: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: queryLimit,
       }),
       prisma.statusTransition.count({ where: transitionWhere }),
     ]);

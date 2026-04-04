@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -75,6 +75,14 @@ export default function AuditTrailPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -85,7 +93,7 @@ export default function AuditTrailPage() {
       if (entityType !== 'All') params.set('entityType', entityType);
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
 
       const res = await fetch(`/api/v1/audit-logs?${params.toString()}`);
       if (res.ok) {
@@ -96,7 +104,7 @@ export default function AuditTrailPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, entityType, from, to, search]);
+  }, [page, pageSize, entityType, from, to, debouncedSearch]);
 
   useEffect(() => {
     fetchData();
@@ -105,7 +113,7 @@ export default function AuditTrailPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [entityType, from, to, search]);
+  }, [entityType, from, to, debouncedSearch]);
 
   const totalPages = Math.ceil(total / pageSize);
 
