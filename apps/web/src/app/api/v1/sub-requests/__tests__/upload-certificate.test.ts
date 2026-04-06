@@ -58,6 +58,12 @@ function createMockRequest(
 
   const request = {
     formData: vi.fn().mockResolvedValue(formData),
+    headers: {
+      get: vi.fn().mockImplementation((name: string) => {
+        if (name === 'content-length') return String(file?.size ?? 0);
+        return null;
+      }),
+    },
     method: 'POST',
     url: 'http://localhost/api/v1/sub-requests/sub-1/upload-certificate',
   } as unknown as Request;
@@ -177,7 +183,7 @@ describe('POST /api/v1/sub-requests/[id]/upload-certificate', () => {
     expect(res.status).toBe(201);
   });
 
-  it('returns 400 when file size exceeds 20MB', async () => {
+  it('returns 413 when Content-Length exceeds 20MB', async () => {
     mockPrisma.subRequest.findUnique.mockResolvedValue(subRequestFixture());
 
     const request = createMockRequest({
@@ -187,8 +193,8 @@ describe('POST /api/v1/sub-requests/[id]/upload-certificate', () => {
     const res = await POST(request, { params: Promise.resolve({ id: 'sub-1' }) });
     const json = await res.json();
 
-    expect(res.status).toBe(400);
-    expect(json.error).toMatch(/20MB/i);
+    expect(res.status).toBe(413);
+    expect(json.error).toMatch(/too large/i);
   });
 
   it('returns 400 for non-PDF file type', async () => {

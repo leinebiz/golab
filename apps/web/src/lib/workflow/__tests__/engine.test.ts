@@ -157,8 +157,10 @@ describe('executeTransition', () => {
       }),
     );
 
-    // Transaction should NOT have been called
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    // Guard now runs inside the transaction, so $transaction IS called
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+    // But the status update should NOT have happened (guard rejected before update)
+    expect(mockPrisma.request.update).not.toHaveBeenCalled();
   });
 
   it('allows transition when guard returns true', async () => {
